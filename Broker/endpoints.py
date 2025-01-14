@@ -4,6 +4,7 @@ from flask import request, jsonify
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from utils import logger
 from swagger_models import api, cnn_model_parameters
 from responses import ok_message, bad_model_message, bad_optimizer_message, runtime_error_message, response_message
 import requests
@@ -16,6 +17,7 @@ class CNNModel(Resource):
     @ns.expect(cnn_model_parameters)
     def post(self):
         """Create a CNN model with the given parameters."""
+        logger.info(f"Creating CNN model with parameters")
         params = request.get_json()
         
         json_to_send = {
