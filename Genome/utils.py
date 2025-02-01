@@ -83,6 +83,7 @@ def create_genome(individual, dataset_params):
     """ 
     Function to create a genome based on the individual and dataset parameters.
     """
+    logger.debug(f"Creating genome with individual: {individual} and dataset_params: {dataset_params}")
     genome = {
         'Number of Convolutional Layers': individual['num_conv_layers'],
         'Number of Fully Connected Layers': individual['fully_connected'],
@@ -105,6 +106,7 @@ def cross_genomes(genome1, genome2):
     """ 
     Function to cross two genomes. 50% of the time, the gene will be taken from genome1, otherwise from genome2. Randomly.
     """
+    logger.debug(f"Crossing genomes: {genome1} and {genome2}")
     new_genome = {}
     for key in genome1:
         new_genome[key] = genome1[key] if torch.rand(1) > 0.5 else genome2[key]
@@ -128,7 +130,9 @@ def mutate_genome(genome, mutation_rate=0.1):
                 genome[key] = [torch.randint(16, 128, (1,)).item() for _ in range(genome['Number of Fully Connected Layers'])]
             
             elif key == 'Activation Functions':
-                genome[key] = [torch.randint(0, len(MAP_ACTIVATE_FUNCTIONS), (1,)).item() for _ in range(genome['Number of Fully Connected Layers'])]
+                # Selección aleatoria de funciones de activación
+                activation_function_key = random.choice(list(MAP_ACTIVATE_FUNCTIONS.keys()))  # Selección aleatoria de la clave
+                genome[key] = [activation_function_key for _ in range(genome['Number of Fully Connected Layers'])]  # Asigna las funciones de activación
             
             elif key in ['Dropout Rate', 'Learning Rate']:
                 factor = random.choice([0.1, 0.01, 0.001])
@@ -139,7 +143,9 @@ def mutate_genome(genome, mutation_rate=0.1):
                 genome[key] = torch.randint(16, 128, (1,)).item()
             
             elif key == 'Optimizer':
-                genome[key] = torch.randint(0, len(MAP_OPTIMIZERS), (1,)).item()
+                # Selección aleatoria de un optimizador del mapa
+                optimizer_key = random.choice(list(MAP_OPTIMIZERS.keys()))  # Selección aleatoria de la clave
+                genome[key] = optimizer_key  # Asigna el nombre del optimizador
             
             elif key in ['num_channels', 'num_classes']:
                 genome[key] = torch.randint(1, 4, (1,)).item() if key == 'num_channels' else torch.randint(2, 10, (1,)).item()
@@ -160,16 +166,16 @@ def mutate_genome(genome, mutation_rate=0.1):
 
 MAP_ACTIVATE_FUNCTIONS = {
     
-    'relu': nn.ReLU,
-    'sigmoid': nn.Sigmoid,
-    'tanh': nn.Tanh,
-    'leakyrelu': nn.LeakyReLU,
-    'selu': nn.SELU
+    'relu': 'relu',
+    'sigmoid':'sigmoid',
+    'tanh': 'tanh',
+    'leakyrelu': 'leakyrelu',
+    'selu': 'selu',
 }
 
 MAP_OPTIMIZERS = {
-    'adam': optim.Adam,
-    'adamw': optim.AdamW,
-    'sgd': optim.SGD,
-    'rmsprop': optim.RMSprop
+    'adam': 'adam',
+    'adamw': 'adamw',
+    'sgd': 'sgd',
+    'rmsprop': 'rmsprop',
 }

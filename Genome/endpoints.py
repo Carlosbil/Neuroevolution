@@ -6,7 +6,7 @@ import torch.nn as nn
 import torch.optim as optim
 from swagger_models import api, cnn_model_parameters
 from responses import ok_message, bad_model_message, bad_optimizer_message
-from utils import get_individual, get_dataset_params, build_cnn_from_individual, MAP_OPTIMIZERS, logger, create_genome,  cross_genomes, mutate_genome
+from utils import get_individual, get_dataset_params, MAP_OPTIMIZERS, logger, create_genome,  cross_genomes, mutate_genome
 
 ns = api.namespace('', description='Genetic Algorithm operations')
 
