@@ -8,7 +8,7 @@ from swagger_models import api, cnn_model_parameters
 from responses import ok_message, bad_model_message, bad_optimizer_message
 from utils import get_individual, get_dataset_params, build_cnn_from_individual, MAP_OPTIMIZERS, logger
 
-ns = api.namespace('cnn', description='CNN Model operations')
+ns = api.namespace('', description='CNN Model operations')
 
 
 @ns.route('/create_cnn_model')
