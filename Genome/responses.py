@@ -24,9 +24,3 @@ def runtime_error_message():
     response.status_code = 500
     logger.error(f"Response: {response}")
     return response
-
-def response_message(message, status_code):
-    response = jsonify(message)
-    response.status_code = status_code
-    logger.error(f"Response: {response}")
-    return response
