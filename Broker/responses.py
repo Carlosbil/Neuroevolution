@@ -30,3 +30,9 @@ def response_message(message, status_code):
     response.status_code = status_code
     logger.error(f"Response: {response}")
     return response
+
+def bad_request_message(message):
+    response = jsonify({'error': 'Bad request', 'message': message})
+    response.status_code = 400
+    logger.error(f"Response: {response}")
+    return response
