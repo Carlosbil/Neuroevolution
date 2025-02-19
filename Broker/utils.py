@@ -1,6 +1,6 @@
 import logging
 import colorlog
-
+import uuid
 
 # Configure global logger only once.
 logging.basicConfig(
@@ -40,3 +40,9 @@ def check_initial_poblation(params):
     if 'num_channels' not in params or 'px_h' not in params or 'px_w' not in params or 'num_classes' not in params or 'batch_size' not in params or 'num_poblation' not in params:
         return False
     return True
+
+def generate_uuid():
+    """ 
+    Generate a random UUID.
+    """
+    return str(uuid.uuid4())

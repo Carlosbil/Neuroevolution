@@ -4,7 +4,7 @@ from flask import request, jsonify
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from utils import logger, check_initial_poblation
+from utils import logger, check_initial_poblation, generate_uuid
 from swagger_models import api, cnn_model_parameters, child_model_parameters, initial_poblation
 from responses import ok_message, bad_model_message, bad_optimizer_message, runtime_error_message, response_message, bad_request_message
 import requests
@@ -110,7 +110,15 @@ class CreateInitialPoblation(Resource):
             
             # Check if the response was successful
             if response.status_code == 200:
-                return ok_message(response.json())
+                json_data = response.json()
+                message = json_data.get('message', {})
+                models = message.get('models', {})
+                # save the models to a file in ./models+uuid.json 
+                path = os.path.join(os.path.dirname(__file__),'models', f'models_{generate_uuid()}.json')
+                with open(path, 'w') as file:
+                    json.dump(models, file)
+                    
+                return ok_message(message)
             else:
                 return response_message(response.json(), response.status_code)
 
