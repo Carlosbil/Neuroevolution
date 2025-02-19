@@ -4,7 +4,7 @@ from flask import request, jsonify
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from utils import logger, check_initial_poblation, generate_uuid
+from utils import logger, check_initial_poblation, generate_uuid, get_possible_models
 from swagger_models import api, cnn_model_parameters, child_model_parameters, initial_poblation
 from responses import ok_message, bad_model_message, bad_optimizer_message, runtime_error_message, response_message, bad_request_message
 import requests
@@ -12,11 +12,6 @@ import json
 import os
 
 ns = api.namespace('', description='CNN Model operations')
-
-# Load possible models from ./possible_models.json
-path = os.path.join(os.path.dirname(__file__), 'possible_models.json')
-with open(path, 'r') as file:
-    possible_models = json.load(file)
 
 @ns.route('/create_cnn_model')
 class CNNModel(Resource):
@@ -26,12 +21,13 @@ class CNNModel(Resource):
         logger.info("Creating CNN model with parameters")
         data = request.get_json()
         
-        if 'model_id' not in data:
-            return bad_request_message("model_id is required")
+        if 'model_id' not in data or not 'uuid' in data:
+            return bad_request_message("model_id and uuid are required")
         
         # Convert model_id to string to match keys in possible_models
         model_id = str(data['model_id'])
         logger.info(f"Creating CNN model with parameters: {model_id}")
+        possible_models = get_possible_models(data['uuid'])
         
         if model_id not in possible_models:
             return bad_request_message()

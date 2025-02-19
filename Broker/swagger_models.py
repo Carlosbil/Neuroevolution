@@ -5,6 +5,7 @@ api = Api()
 
 cnn_model_parameters = api.model('CNNModelParameters', {
     'model_id': fields.Integer(required=True, description='Model ID', default=1),
+    'uuid': fields.String(required=True, description='UUID', default=''),
 })
 
 child_model_parameters = api.model('ChildModelParameters', {

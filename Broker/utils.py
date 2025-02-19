@@ -1,6 +1,8 @@
 import logging
 import colorlog
 import uuid
+import os
+import json
 
 # Configure global logger only once.
 logging.basicConfig(
@@ -46,3 +48,13 @@ def generate_uuid():
     Generate a random UUID.
     """
     return str(uuid.uuid4())
+
+def get_possible_models(models_uuid):
+    """ 
+    Get the possible models from the given UUID.
+    """
+    # Load possible models from ./models/uuid.json
+    path = os.path.join(os.path.dirname(__file__), 'models', f'{models_uuid}.json')
+    with open(path, 'r') as file:
+        possible_models = json.load(file)
+    return possible_models
