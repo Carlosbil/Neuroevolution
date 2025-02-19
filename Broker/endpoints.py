@@ -113,12 +113,18 @@ class CreateInitialPoblation(Resource):
                 json_data = response.json()
                 message = json_data.get('message', {})
                 models = message.get('models', {})
+                models__uuid = generate_uuid()
                 # save the models to a file in ./models+uuid.json 
-                path = os.path.join(os.path.dirname(__file__),'models', f'models_{generate_uuid()}.json')
+                path = os.path.join(os.path.dirname(__file__),'models', f'{models__uuid}.json')
                 with open(path, 'w') as file:
                     json.dump(models, file)
-                    
-                return ok_message(message)
+                
+                
+                return_message = {
+                    "uuid": models__uuid,
+                    "path": path
+                }
+                return ok_message(return_message)
             else:
                 return response_message(response.json(), response.status_code)
 
