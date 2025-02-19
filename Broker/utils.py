@@ -32,3 +32,11 @@ formatter = colorlog.ColoredFormatter(
 )
 log_handler.setFormatter(formatter)
 logger.addHandler(log_handler)
+
+def check_initial_poblation(params):
+    """ 
+    Check the initial poblation parameters.
+    """
+    if 'num_channels' not in params or 'px_h' not in params or 'px_w' not in params or 'num_classes' not in params or 'batch_size' not in params or 'num_poblation' not in params:
+        return False
+    return True

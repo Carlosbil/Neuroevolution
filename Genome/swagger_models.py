@@ -24,3 +24,12 @@ cnn_model_parameters = api.model('CNNModelParameters', {
     '1': fields.Nested(layer_structure, required=True, description='The first individual'),
     '2': fields.Nested(layer_structure, required=True, description='The second individual')
 })
+
+initial_poblation = api.model('InitialPoblation', {
+    'num_channels': fields.Integer(required=True, description='Number of input channels'),
+    'px_h': fields.Integer(required=True, description='Image height'),
+    'px_w': fields.Integer(required=True, description='Image width'),
+    'num_classes': fields.Integer(required=True, description='Number of classes'),
+    'batch_size': fields.Integer(required=True, description='Batch size'),
+    'num_poblation': fields.Integer(required=True, description='Number of individuals in the initial poblation'),
+})

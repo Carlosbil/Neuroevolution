@@ -164,6 +164,80 @@ def mutate_genome(genome, mutation_rate=0.1):
     return genome
 
 
+def check_initial_poblation(params):
+    """ 
+    Check the initial poblation parameters.
+    """
+    if 'num_channels' not in params or 'px_h' not in params or 'px_w' not in params or 'num_classes' not in params or 'batch_size' not in params or 'num_poblation' not in params:
+        return False
+    return True
+
+
+def generate_random_model_config(num_channels: int, px_h: int, px_w: int, num_classes: int, batch_size: int) -> dict:
+    """
+    Generate a CNN model configuration with fixed parameters for input channels, image dimensions, 
+    number of classes, and batch size, while the rest of the parameters are generated randomly 
+    with sensible values for an artificial neural network.
+    
+    :param num_channels: Number of input channels (fixed).
+    :param px_h: Image height (fixed).
+    :param px_w: Image width (fixed).
+    :param num_classes: Number of output classes (fixed).
+    :param batch_size: Batch size (fixed).
+    :return: A dictionary representing the CNN model configuration.
+    """
+    # Randomly determine the number of convolutional and fully connected layers.
+    num_conv_layers = random.randint(1, 4)
+    num_fc_layers = random.randint(1, 3)
+    
+    # Generate a list for "Number of Nodes in Each Layer" with random sensible node counts.
+    nodes_options = [16, 32, 64, 128]
+    fc_nodes = [random.choice(nodes_options) for _ in range(num_fc_layers)]
+    
+    # Generate a list for "Activation Functions" by randomly choosing from common activations.
+    activation_options = ["relu", "sigmoid", "tanh", "leakyrelu", "selu"]
+    activations = [random.choice(activation_options) for _ in range(num_fc_layers)]
+    
+    # Generate a random dropout rate between 0.1 and 0.5 (rounded to 2 decimals).
+    dropout_rate = round(random.uniform(0.1, 0.5), 2)
+    
+    # Choose a random learning rate from a predefined set.
+    learning_rate_options = [0.1, 0.01, 0.001, 0.0001]
+    learning_rate = random.choice(learning_rate_options)
+    
+    # Randomly select an optimizer from a list of common optimizers.
+    optimizer_options = ["adam", "adamw", "sgd", "rmsprop"]
+    optimizer = random.choice(optimizer_options)
+    
+    # Generate a list for "filters" for each convolutional layer (common choices for number of filters).
+    filter_options = [16, 32, 64]
+    filters = [random.choice(filter_options) for _ in range(num_conv_layers)]
+    
+    # Generate a list for "kernel_sizes" for each convolutional layer.
+    kernel_options = [3, 5, 7]
+    kernel_sizes = [random.choice(kernel_options) for _ in range(num_conv_layers)]
+    
+    # Assemble the model configuration dictionary.
+    model_config = {
+        "Number of Convolutional Layers": num_conv_layers,
+        "Number of Fully Connected Layers": num_fc_layers,
+        "Number of Nodes in Each Layer": fc_nodes,
+        "Activation Functions": activations,
+        "Dropout Rate": dropout_rate,
+        "Learning Rate": learning_rate,
+        "Batch Size": batch_size,
+        "Optimizer": optimizer,
+        "num_channels": num_channels,
+        "px_h": px_h,
+        "px_w": px_w,
+        "num_classes": num_classes,
+        "filters": filters,
+        "kernel_sizes": kernel_sizes
+    }
+    
+    return model_config
+
+
 MAP_ACTIVATE_FUNCTIONS = {
     
     'relu': 'relu',
