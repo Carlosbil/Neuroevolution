@@ -63,6 +63,10 @@ class CreateChild(Resource):
         
         model_id = str(data['model_id'])
         second_model_id = str(data['second_model_id'])
+        possible_models = get_possible_models(data['uuid'])
+        
+        if model_id not in possible_models:
+            return bad_request_message()
         json_to_send = {
             "1": possible_models[model_id],
             "2": possible_models[second_model_id] 

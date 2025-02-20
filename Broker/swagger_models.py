@@ -11,6 +11,7 @@ cnn_model_parameters = api.model('CNNModelParameters', {
 child_model_parameters = api.model('ChildModelParameters', {
     'model_id': fields.Integer(required=True, description='Model ID', default=1),
     'second_model_id': fields.Integer(required=True, description='Second Model ID', default=1),
+    'uuid': fields.String(required=True, description='UUID', default=''),
 })
 
 initial_poblation = api.model('InitialPoblation', {
