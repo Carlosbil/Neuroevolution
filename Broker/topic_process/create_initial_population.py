@@ -17,7 +17,7 @@ def process_create_initial_population(topic, data):
         producer = create_producer()
         topic_to_sed = "genome-create-initial-population"
         response_topic = f"{topic_to_sed}-response"
-        produce_message(producer, topic_to_sed, json.dumps(json_to_send))
+        produce_message(producer, topic_to_sed, json.dumps(json_to_send), times=1)
         
         #Now we wait to the response
         consumer = create_consumer()
@@ -37,8 +37,7 @@ def process_create_initial_population(topic, data):
         consumer.close()
         
         # get the models
-        response = response.get('message', {})
-        if response.status_code == 200:
+        if response.get('status_code', 0) == 200:
             json_data = response.json()
             message = json_data.get('message', {})
             models = message.get('models', {})

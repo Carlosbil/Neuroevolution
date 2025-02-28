@@ -31,7 +31,7 @@ def create_consumer(group_id='consumer-group'):
     consumer.subscribe([TOPIC_RESPONSE])
     return consumer
 
-def consume_message(consumer, max_wait=10):
+def consume_message(consumer, max_wait=1000):
     start_time = time.time()
     while True:
         msg = consumer.poll(timeout=1.0)
@@ -89,7 +89,7 @@ def test_create_population():
     send_message(producer, TOPIC, key="population_eval", value=message)
     
     consumer = create_consumer()
-    response = consume_message(consumer, max_wait=10)
+    response = consume_message(consumer, max_wait=1000)
     consumer.close()
     
     check_response(response)

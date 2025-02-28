@@ -18,6 +18,12 @@ KAFKA_CONFIG = {
     'auto.offset.reset': 'earliest'
 }
 
+# Dictionary-based topic-to-function mapping
+TOPIC_PROCESSORS = {
+    "genome-create-child": handle_create_child,
+    "genome-create-initial-population": handle_create_initial_population,
+}
+
 # Function to create a Kafka consumer
 def create_kafka_consumer():
     consumer = Consumer(KAFKA_CONFIG)
@@ -25,18 +31,12 @@ def create_kafka_consumer():
     return consumer
 
 
-# Dictionary-based topic-to-function mapping
-TOPIC_PROCESSORS = {
-    "genome-create-child": handle_create_child,
-    "genome-create-initial-population": handle_create_initial_population,
-}
-
-
 def main():
     consumer = create_kafka_consumer()
     logger.info("Started Kafka Consumer")
 
     try:
+        # Poll for new messages until the process is interrupted
         while True:
             msg = consumer.poll(timeout=1.0)
             if msg is None:
@@ -47,11 +47,13 @@ def main():
                 else:
                     logger.error(f"Kafka error: {msg.error()}")
                 continue
-
+            
+            # Process the message
             topic = msg.topic()
             data = json.loads(msg.value().decode('utf-8'))
             logger.info(f" ✅ Received message on topic '{topic}': {data}")
 
+            # process the topic with the corresponding function
             processor = TOPIC_PROCESSORS.get(topic)
             if processor:
                 processor(topic, data)
