@@ -1,19 +1,82 @@
-# app.py
-from flask import Flask
-from flask_restx import Api
-from endpoints import ns as cnn_namespace
-from swagger_models import api
-import torch
+import json
+import os
+import logging
+import requests
+from confluent_kafka import Consumer, KafkaException, KafkaError
+from topic_process.create_initial_population import process_create_initial_population
+from topic_process.evaluate_population import process_evaluate_population
+from topic_process.create_child import process_create_child
 
-app = Flask(__name__)
+from utils import (
+    logger,
+    check_initial_poblation,
+    generate_uuid,
+    get_possible_models,
+    create_producer,
+    produce_message,
+)
+from responses import (
+    ok_message,
+    bad_model_message,
+    bad_optimizer_message,
+    runtime_error_message,
+    response_message,
+    bad_request_message,
+)
 
-api.init_app(app)
-api.add_namespace(cnn_namespace, path='/api')
+# Kafka configuration
+KAFKA_CONFIG = {
+    'bootstrap.servers': 'localhost:9092',
+    'group.id': 'consumer-group',
+    'auto.offset.reset': 'earliest'
+}
 
-if torch.cuda.is_available():
-    print("CUDA (GPU) is available on your system.")
-else:
-    print("CUDA (GPU) is not available on your system.")
+# Function to create a Kafka consumer
+def create_kafka_consumer():
+    consumer = Consumer(KAFKA_CONFIG)
+    consumer.subscribe(list(TOPIC_PROCESSORS.keys()))  # Subscribe to all topics
+    return consumer
 
-if __name__ == '__main__':
-    app.run(debug=True, port=5001)
+
+# Dictionary-based topic-to-function mapping
+TOPIC_PROCESSORS = {
+    "create-child": process_create_child,
+    "create-initial-population": process_create_initial_population,
+    "evaluate-population": process_evaluate_population,
+}
+
+
+def main():
+    consumer = create_kafka_consumer()
+    logger.info("Started Kafka Consumer")
+
+    try:
+        while True:
+            msg = consumer.poll(timeout=1.0)
+            if msg is None:
+                continue
+            if msg.error():
+                if msg.error().code() == KafkaError._PARTITION_EOF:
+                    logger.info(f"Reached end of partition: {msg.topic()} [{msg.partition()}]")
+                else:
+                    logger.error(f"Kafka error: {msg.error()}")
+                continue
+
+            topic = msg.topic()
+            data = json.loads(msg.value().decode('utf-8'))
+            logger.info(f" ✅ Received message on topic '{topic}': {data}")
+
+            processor = TOPIC_PROCESSORS.get(topic)
+            if processor:
+                processor(topic, data)
+            else:
+                logger.error(f"Unknown topic: {topic}")
+
+    except KeyboardInterrupt:
+        logger.error("⚠️ Shutting down consumer via keyboard... ⚠️")
+    finally:
+        consumer.close()
+
+
+if __name__ == "__main__":
+    main()

@@ -3,6 +3,9 @@ import colorlog
 import uuid
 import os
 import json
+from confluent_kafka import Producer, Consumer, KafkaException, KafkaError
+
+KAFKA_BROKER = "localhost:9092"
 
 # Configure global logger only once.
 logging.basicConfig(
@@ -35,6 +38,7 @@ formatter = colorlog.ColoredFormatter(
 log_handler.setFormatter(formatter)
 logger.addHandler(log_handler)
 
+
 def check_initial_poblation(params):
     """ 
     Check the initial poblation parameters.
@@ -43,11 +47,13 @@ def check_initial_poblation(params):
         return False
     return True
 
+
 def generate_uuid():
     """ 
     Generate a random UUID.
     """
     return str(uuid.uuid4())
+
 
 def get_possible_models(models_uuid):
     """ 
@@ -58,3 +64,24 @@ def get_possible_models(models_uuid):
     with open(path, 'r') as file:
         possible_models = json.load(file)
     return possible_models
+
+
+def produce_message(producer, topic, message, times=10):
+    """Publish a message to Kafka."""
+    for i in range(times):
+        producer.produce(topic, message.encode('utf-8'))
+        producer.flush()
+        print(f"[✅] Mensaje enviado: {message} - Tópico: {topic} - {i} ")
+
+def create_producer():
+    """Crea un productor de Kafka."""
+    return Producer({'bootstrap.servers': KAFKA_BROKER})
+
+
+def create_consumer():
+    """Crea un consumidor de Kafka."""
+    return Consumer({
+        'bootstrap.servers': KAFKA_BROKER,
+        'group.id': 'python-consumer-group',
+        'auto.offset.reset': 'earliest'
+    })

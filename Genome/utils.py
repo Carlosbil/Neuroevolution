@@ -4,6 +4,10 @@ import torch.optim as optim
 import logging
 import colorlog
 import random
+from confluent_kafka import Producer, Consumer
+
+KAFKA_BROKER = "localhost:9092"
+
 
 # Configure global logger only once.
 logging.basicConfig(
@@ -242,13 +246,33 @@ def generate_random_model_config(num_channels: int, px_h: int, px_w: int, num_cl
     return model_config
 
 
+def produce_message(producer, topic, message, times=10):
+    """Publish a message to Kafka."""
+    for i in range(times):
+        producer.produce(topic, message.encode('utf-8'))
+        producer.flush()
+        print(f"[✅] Mensaje enviado: {message} - Tópico: {topic} - {i} ")
+
+def create_producer():
+    """Crea un productor de Kafka."""
+    return Producer({'bootstrap.servers': KAFKA_BROKER})
+
+
+def create_consumer():
+    """Crea un consumidor de Kafka."""
+    return Consumer({
+        'bootstrap.servers': KAFKA_BROKER,
+        'group.id': 'python-consumer-group',
+        'auto.offset.reset': 'earliest'
+    })
+
+
+
 MAP_ACTIVATE_FUNCTIONS = {
-    
     'relu': 'relu',
     'sigmoid':'sigmoid',
     'tanh': 'tanh',
     'leakyrelu': 'leakyrelu',
-    'selu': 'selu',
 }
 
 MAP_OPTIMIZERS = {
