@@ -7,26 +7,30 @@ import colorlog
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
 from tqdm import tqdm  # Import tqdm for progress bar
+from confluent_kafka import Producer, Consumer
 
-# Configure global logger only once.
+KAFKA_BROKER = "localhost:9092"
+
+
+# Configuración global del logger, incluyendo el nombre del archivo y la línea
 logging.basicConfig(
     level=logging.DEBUG,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    format='%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s',
     handlers=[logging.StreamHandler()]
 )
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
-# Avoid duplicate log messages: clear any existing handlers and disable propagation.
+# Evitar mensajes duplicados: limpiar cualquier manejador existente y deshabilitar la propagación.
 if logger.hasHandlers():
     logger.handlers.clear()
 logger.propagate = False
 
-# Create a colored log handler for console output.
+# Crear un manejador de log con colores para la salida en consola.
 log_handler = colorlog.StreamHandler()
 formatter = colorlog.ColoredFormatter(
-    '%(log_color)s%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    '%(log_color)s%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S',
     log_colors={
         'DEBUG': 'cyan',
@@ -38,6 +42,7 @@ formatter = colorlog.ColoredFormatter(
 )
 log_handler.setFormatter(formatter)
 logger.addHandler(log_handler)
+
 
 # Mapping for activation functions and optimizers.
 MAP_ACTIVATE_FUNCTIONS: Dict[str, type] = {
@@ -54,6 +59,24 @@ MAP_OPTIMIZERS: Dict[str, type] = {
     'sgd': optim.SGD,
     'rmsprop': optim.RMSprop
 }
+
+
+def check_params(params: Dict) -> bool:
+    """
+    Check if the input parameters are valid.
+    
+    :param params: Input parameters.
+    :return: True if the parameters are valid, False otherwise.
+    """
+    required_keys = ['Number of Convolutional Layers', 'Number of Fully Connected Layers',
+                     'filters', 'kernel_sizes', 'Dropout Rate', 'Activation Functions',
+                     'num_channels', 'px_h', 'px_w', 'num_classes', 'Batch Size',
+                     'Optimizer', 'Learning Rate']
+    for key in required_keys:
+        if key not in params:
+            logger.error(f"Missing required parameter: {key}")
+            return False
+    return True
 
 
 def get_individual(params: Dict) -> Dict:
@@ -259,6 +282,9 @@ def build_cnn_from_individual(individual: Dict, num_channels: int, px_h: int, px
     model = nn.Sequential(*layers)
     logger.debug(f"Constructed CNN model:\n{model}")
     
+    # clean cuda cache
+    torch.cuda.empty_cache()
+    
     # Set up device, optimizer, and loss function.
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     logger.info(f"Using device: {device}")
@@ -272,3 +298,24 @@ def build_cnn_from_individual(individual: Dict, num_channels: int, px_h: int, px
     final_accuracy = train_and_evaluate(model, device, train_loader, test_loader, optimizer, criterion, num_epochs)
     
     return final_accuracy
+
+
+def produce_message(producer, topic, message, times=10):
+    """Publish a message to Kafka."""
+    for i in range(times):
+        producer.produce(topic, message.encode('utf-8'))
+        producer.flush()
+        print(f"[✅] Mensaje enviado: {message} - Tópico: {topic} - {i} ")
+
+def create_producer():
+    """Crea un productor de Kafka."""
+    return Producer({'bootstrap.servers': KAFKA_BROKER})
+
+
+def create_consumer():
+    """Crea un consumidor de Kafka."""
+    return Consumer({
+        'bootstrap.servers': KAFKA_BROKER,
+        'group.id': 'python-consumer-group',
+        'auto.offset.reset': 'earliest'
+    })

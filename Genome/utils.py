@@ -9,25 +9,25 @@ from confluent_kafka import Producer, Consumer
 KAFKA_BROKER = "localhost:9092"
 
 
-# Configure global logger only once.
+# Configuración global del logger, incluyendo el nombre del archivo y la línea
 logging.basicConfig(
     level=logging.DEBUG,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    format='%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s',
     handlers=[logging.StreamHandler()]
 )
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
-# Avoid duplicate log messages: clear any existing handlers and disable propagation.
+# Evitar mensajes duplicados: limpiar cualquier manejador existente y deshabilitar la propagación.
 if logger.hasHandlers():
     logger.handlers.clear()
 logger.propagate = False
 
-# Create a colored log handler for console output.
+# Crear un manejador de log con colores para la salida en consola.
 log_handler = colorlog.StreamHandler()
 formatter = colorlog.ColoredFormatter(
-    '%(log_color)s%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    '%(log_color)s%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S',
     log_colors={
         'DEBUG': 'cyan',

@@ -12,7 +12,7 @@ def process_create_initial_population(topic, data):
         if not check_initial_poblation(data):
             return bad_model_message(topic)
 
-        # mandamos el evento de crear una poblacion inicial
+        # Send the message to the genome-create-initial-population topic
         json_to_send = data
         producer = create_producer()
         topic_to_sed = "genome-create-initial-population"
@@ -38,8 +38,7 @@ def process_create_initial_population(topic, data):
         
         # get the models
         if response.get('status_code', 0) == 200:
-            json_data = response.json()
-            message = json_data.get('message', {})
+            message = response.get('message', {})
             models = message.get('models', {})
             models_uuid = generate_uuid()
             path = os.path.join(os.path.dirname(__file__),'..', 'models', f'{models_uuid}.json')
@@ -49,7 +48,7 @@ def process_create_initial_population(topic, data):
 
             return ok_message(topic, {"uuid": models_uuid, "path": path})
         else:
-            return response_message(topic, response.json(), response.status_code)
+            return response_message(topic, response, response.get('status_code', 0))
     except Exception as e:
         logger.error(f"Error in create_initial_population: {e}")
         return runtime_error_message(topic)

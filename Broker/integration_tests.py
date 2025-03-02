@@ -5,8 +5,15 @@ from confluent_kafka import Producer, Consumer, KafkaError
 
 # Configuración global de Kafka
 KAFKA_BROKER = "localhost:9092"  # Cambia esto según tu configuración
+
+# topic for genomes interactions
 TOPIC = "create-initial-population"
-TOPIC_RESPONSE = "create-initial-population-response"
+TOPIC_RESPONSE = f"{TOPIC}-response"
+
+# topic for evaluation
+TOPIC_EVALUATE = "evaluate-population"
+TOPIC_EVALUATE_RESPONSE = f"{TOPIC_EVALUATE}-response"
+
 
 def create_producer():
     producer_config = {"bootstrap.servers": KAFKA_BROKER}
@@ -28,7 +35,7 @@ def create_consumer(group_id='consumer-group'):
         'auto.offset.reset': 'earliest'
     }
     consumer = Consumer(consumer_config)
-    consumer.subscribe([TOPIC_RESPONSE])
+    consumer.subscribe([TOPIC_RESPONSE, TOPIC_EVALUATE_RESPONSE])
     return consumer
 
 def consume_message(consumer, max_wait=1000):
@@ -76,9 +83,9 @@ def test_create_population():
     que el archivo indicado existe y contiene 10 individuos.
     """
     params = {
-        "num_channels": 3,
-        "px_h": 32,
-        "px_w": 32,
+        "num_channels": 1,
+        "px_h": 28,
+        "px_w": 28,
         "num_classes": 10,
         "batch_size": 32,
         "num_poblation": 10
@@ -251,7 +258,33 @@ def test_create_population_missing_num_poblation():
     assert response.get("status_code") == 400, f"Se esperaba status_code 400, pero se recibió {response.get('status_code')}"
     print("✅ Test sin 'num_poblation' finalizado correctamente con status_code 400.")
     return response
+
+
+def test_evaluate_population():
+    """
+    Test que envía un mensaje válido y comprueba que se recibe una respuesta con status_code 200,
+    que el archivo indicado existe y contiene 10 individuos.
+    """
     
+    #First we need to create a population
+    
+    uuid = test_create_population().get("message", {})
+    uuid = uuid.get("uuid", '3d91192b-68f2-4766-9e27-08cb7bf56733')
+    params = {
+        "uuid": uuid
+    }
+    message = json.dumps(params)
+    
+    producer = create_producer()
+    send_message(producer, TOPIC_EVALUATE, key="population_eval", value=message)
+    
+    consumer = create_consumer()
+    response = consume_message(consumer, max_wait=3600)
+    consumer.close()
+    
+    print("✅ Test de evaluación de población válido finalizado correctamente.")
+    return response
+
 if __name__ == "__main__":
     print("Ejecutando test de población válida...")
     test_create_population()
@@ -267,3 +300,5 @@ if __name__ == "__main__":
     test_create_population_missing_batch_size()
     print("\nEjecutando test sin 'num_poblation'...")
     test_create_population_missing_num_poblation()
+    print("\nEjecutando test de evaluación de población...")
+    test_evaluate_population()

@@ -1,8 +1,10 @@
-from utils import logger
+from utils import logger, create_producer, produce_message, create_consumer
 from responses import ok_message, bad_model_message, runtime_error_message, bad_request_message
 import requests
 import json
 import os
+from confluent_kafka import KafkaError
+
 
 def process_evaluate_population(topic, data):
     """Process messages from the 'evaluate_population' topic and send a response to Kafka."""
@@ -10,29 +12,56 @@ def process_evaluate_population(topic, data):
         logger.info("Processing evaluate_population")
         if 'uuid' not in data:
             return bad_request_message(topic, "uuid is required")
-
+        
+        # extract the models
         models_uuid = data['uuid']
-        path = os.path.join(os.path.dirname(__file__), 'models', f'{models_uuid}.json')
+        path = os.path.join(os.path.dirname(__file__), '..', 'models', f'{models_uuid}.json')
         if not os.path.exists(path):
             return bad_model_message(topic)
 
         with open(path, 'r') as file:
             models = json.load(file)
 
-        server_url = "http://127.0.0.1:5000/create_cnn_model"
+        # For each model, send a message to the evolutioner-create-cnn-model topic
         for model_id, model_data in models.items():
+            # extract the model
             json_to_send = model_data
             json_to_send["model_id"] = model_id
             json_to_send["uuid"] = models_uuid
-
+            producer = create_producer()
+            topic_to_sed = "evolutioner-create-cnn-model"
+            response_topic = f"{topic_to_sed}-response"
+            produce_message(producer, topic_to_sed, json.dumps(json_to_send), times=1)
             try:
-                response = requests.post(server_url, json=json_to_send)
-                if response.status_code == 200:
-                    json_response = response.json()
-                    score = json_response.get("message", {}).get("score")
-                    models[model_id]["score"] = score if score is not None else "Error: No score returned"
+                # Now we wait for the response
+                consumer = create_consumer()
+                consumer.subscribe([response_topic])
+                response = None
+                while response is None:
+                    msg = consumer.poll(timeout=1.0)
+                    if msg is None:
+                        continue
+                    if msg.error():
+                        if msg.error().code() == KafkaError._PARTITION_EOF:
+                            logger.info(f"Reached end of partition: {msg.topic()} [{msg.partition()}]")
+                        else:
+                            logger.error(f"Kafka error: {msg.error()}")
+                        continue
+                    response = json.loads(msg.value().decode('utf-8'))
+                consumer.close()
+                
+                # If the response is successful, update the model with the score
+                if response.get("status_code") == 200:
+                    score = response.get("message", {}).get("score")
+                    if score is not None:
+                        logger.info(f"Model {model_id} evaluated with score {score}")
+                        models[model_id]["score"] = score 
+                    else:
+                        logger.error(f"Error evaluating model {model_id}: No score in response")
+                        models[model_id]["score"] = 0
                 else:
-                    models[model_id]["score"] = f"Error: {response.status_code}"
+                    logger.error(f"Error evaluating model {model_id}: {response.get('status_code')}")
+                    models[model_id]["score"] = 0
             except Exception as e:
                 logger.error(f"Error evaluating model {model_id}: {e}")
                 models[model_id]["score"] = f"Error: {str(e)}"
