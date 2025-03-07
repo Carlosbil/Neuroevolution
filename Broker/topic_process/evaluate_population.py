@@ -11,13 +11,15 @@ def process_evaluate_population(topic, data):
     try:
         logger.info("Processing evaluate_population")
         if 'uuid' not in data:
-            return bad_request_message(topic, "uuid is required")
+            bad_request_message(topic, "uuid is required")
+            return None, None
         
         # extract the models
         models_uuid = data['uuid']
         path = os.path.join(os.path.dirname(__file__), '..', 'models', f'{models_uuid}.json')
         if not os.path.exists(path):
-            return bad_model_message(topic)
+            bad_model_message(topic)
+            return None, None
 
         with open(path, 'r') as file:
             models = json.load(file)
@@ -69,7 +71,9 @@ def process_evaluate_population(topic, data):
         with open(path, 'w') as file:
             json.dump(models, file, indent=4)
 
-        return ok_message(topic, {"uuid": models_uuid, "path": path, "message": "Population evaluated successfully"})
+        ok_message(topic, {"uuid": models_uuid, "path": path, "message": "Population evaluated successfully"})
+        return models_uuid, path
     except Exception as e:
         logger.error(f"Error in evaluate_population: {e}")
-        return runtime_error_message(topic)
+        runtime_error_message(topic)
+        return None, None

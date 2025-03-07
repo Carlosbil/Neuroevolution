@@ -10,7 +10,8 @@ def process_create_initial_population(topic, data):
     try:
         logger.info("Processing create_initial_population")
         if not check_initial_poblation(data):
-            return bad_model_message(topic)
+            bad_model_message(topic)
+            return None, None
 
         # Send the message to the genome-create-initial-population topic
         json_to_send = data
@@ -45,8 +46,12 @@ def process_create_initial_population(topic, data):
 
             with open(path, 'w') as file:
                 json.dump(models, file)
-
-            return ok_message(topic, {"uuid": models_uuid, "path": path})
+            message = {
+                "uuid": models_uuid,
+                "path": path
+            }
+            ok_message(topic, message)
+            return models_uuid, path
         else:
             return response_message(topic, response, response.get('status_code', 0))
     except Exception as e:

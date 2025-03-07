@@ -14,7 +14,11 @@ TOPIC_RESPONSE = f"{TOPIC}-response"
 TOPIC_EVALUATE = "evaluate-population"
 TOPIC_EVALUATE_RESPONSE = f"{TOPIC_EVALUATE}-response"
 
+TOPIC_GENETIC_ALGORITHM = "genetic-algorithm"
+TOPIC_GENETIC_ALGORITHM_RESPONSE = f"{TOPIC_GENETIC_ALGORITHM}-response"
 
+TOPIC_SELECTION_ALGORITHM = "select-best-architectures"
+TOPIC_SELECTION_ALGORITHM_RESPONSE = f"{TOPIC_SELECTION_ALGORITHM}-response"
 def create_producer():
     producer_config = {"bootstrap.servers": KAFKA_BROKER}
     return Producer(producer_config)
@@ -35,7 +39,7 @@ def create_consumer(group_id='consumer-group'):
         'auto.offset.reset': 'earliest'
     }
     consumer = Consumer(consumer_config)
-    consumer.subscribe([TOPIC_RESPONSE, TOPIC_EVALUATE_RESPONSE])
+    consumer.subscribe([TOPIC_RESPONSE, TOPIC_EVALUATE_RESPONSE, TOPIC_SELECTION_ALGORITHM_RESPONSE, TOPIC_GENETIC_ALGORITHM_RESPONSE])
     return consumer
 
 def consume_message(consumer, max_wait=1000):
@@ -59,6 +63,43 @@ def consume_message(consumer, max_wait=1000):
             return response
         except Exception as e:
             print(f"Error al procesar el mensaje: {e}")
+
+def consume_all_messages(consumer, topics, max_wait=10000):
+    """
+    Consume messages from Kafka until at least one message is received from each topic.
+    
+    :param consumer: Kafka consumer instance.
+    :param topics: List of topics to wait for messages from.
+    :param max_wait: Maximum time in milliseconds to wait for messages.
+    :return: Dictionary with messages from each topic or None if timeout occurs.
+    """
+    start_time = time.time()
+    received_messages = {topic: None for topic in topics}
+    
+    while any(msg is None for msg in received_messages.values()):
+        msg = consumer.poll(timeout=1.0)
+        if msg is None:
+            if (time.time() - start_time) > max_wait:
+                print("⏰ Tiempo máximo de espera alcanzado.")
+                return None
+            continue
+        
+        if msg.error():
+            if msg.error().code() == KafkaError._PARTITION_EOF:
+                print(f"Reached end of partition: {msg.topic()} [{msg.partition()}]")
+            else:
+                print(f"Error: {msg.error()}")
+            continue
+        
+        try:
+            response = json.loads(msg.value().decode('utf-8'))
+            received_messages[msg.topic()] = response
+            print(f"✅ Received message on topic '{msg.topic()}': {response}")
+        except Exception as e:
+            print(f"Error al procesar el mensaje de {msg.topic()}: {e}")
+    
+    return received_messages
+
 
 def check_response(response):
     """
@@ -285,6 +326,45 @@ def test_evaluate_population():
     print("✅ Test de evaluación de población válido finalizado correctamente.")
     return response
 
+
+def test_genetic_algorithm():
+    """
+    Test que envía un mensaje válido y comprueba que se recibe una respuesta con status_code 200
+    para cada paso del algoritmo genético: creación de población inicial, evaluación y selección
+    de los mejores individuos.
+    """
+    params = {
+        "num_channels": 1,
+        "px_h": 28,
+        "px_w": 28,
+        "num_classes": 10,
+        "batch_size": 32,
+        "num_poblation": 10
+    }
+    message = json.dumps(params)
+    
+    producer = create_producer()
+    send_message(producer, TOPIC_GENETIC_ALGORITHM, key="population_eval", value=message)
+    
+    consumer = create_consumer()
+    response = consume_all_messages(consumer, 
+        [TOPIC_RESPONSE, TOPIC_EVALUATE_RESPONSE, "select-best-architectures-response", TOPIC_GENETIC_ALGORITHM_RESPONSE], 
+        max_wait=3600)
+    consumer.close()
+    
+    # Verify each step's response
+    for topic, msg in response.items():
+        assert msg is not None, f"No se recibió respuesta del tópico {topic}"
+        assert msg.get("status_code") == 200, f"El status_code es {msg.get('status_code')} en lugar de 200 para {topic}"
+    
+    # Verify the final response
+    final_response = response.get(TOPIC_GENETIC_ALGORITHM_RESPONSE)
+    assert final_response.get("message", {}).get("message") == "Genetic algorithm completed successfully: population created, evaluated, and best 50% selected"
+    
+    print("✅ Test de algoritmo genético finalizado correctamente.")
+    return response
+
+
 if __name__ == "__main__":
     print("Ejecutando test de población válida...")
     test_create_population()
@@ -300,5 +380,7 @@ if __name__ == "__main__":
     test_create_population_missing_batch_size()
     print("\nEjecutando test sin 'num_poblation'...")
     test_create_population_missing_num_poblation()
-    print("\nEjecutando test de evaluación de población...")
-    test_evaluate_population()
+    #print("\nEjecutando test de evaluación de población...")
+    #test_evaluate_population()
+    print("\nEjecutando test de algoritmo genético...")
+    test_genetic_algorithm()
