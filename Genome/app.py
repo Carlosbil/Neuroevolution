@@ -8,15 +8,8 @@ from topic_process.create_initial_population import handle_create_initial_popula
 
 from utils import (
     logger,
+    create_consumer
 )
-
-
-# Kafka configuration
-KAFKA_CONFIG = {
-    'bootstrap.servers': 'localhost:9092',
-    'group.id': 'consumer-group',
-    'auto.offset.reset': 'earliest'
-}
 
 # Dictionary-based topic-to-function mapping
 TOPIC_PROCESSORS = {
@@ -26,7 +19,7 @@ TOPIC_PROCESSORS = {
 
 # Function to create a Kafka consumer
 def create_kafka_consumer():
-    consumer = Consumer(KAFKA_CONFIG)
+    consumer = create_consumer()
     consumer.subscribe(list(TOPIC_PROCESSORS.keys()))  # Subscribe to all topics
     return consumer
 

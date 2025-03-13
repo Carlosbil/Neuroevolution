@@ -8,6 +8,9 @@ from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
 from tqdm import tqdm  # Import tqdm for progress bar
 from confluent_kafka import Producer, Consumer
+import signal
+import sys
+import time
 
 KAFKA_BROKER = "localhost:9092"
 
@@ -176,10 +179,12 @@ def build_fc_layers(output_size: int, num_fc: int, dropout: float, num_classes: 
     """
     fc_layers: List[nn.Module] = []
     for _ in range(num_fc):
-        fc_layers.append(nn.Linear(in_features=output_size, out_features=output_size))
+        new_output_size = max(min(output_size // 2, 200), num_classes) # ESTO HABRA QUE AJUSTARLO PARA MEJORAR EL ALGORITMO
+        fc_layers.append(nn.Linear(in_features=output_size, out_features=new_output_size))
         if dropout > 0:
             fc_layers.append(nn.Dropout(dropout))
             dropout -= 1  # Reduce dropout for each layer.
+        output_size = new_output_size
     fc_layers.append(nn.Linear(output_size, num_classes))
     return fc_layers
 
@@ -309,13 +314,20 @@ def produce_message(producer, topic, message, times=10):
 
 def create_producer():
     """Crea un productor de Kafka."""
-    return Producer({'bootstrap.servers': KAFKA_BROKER})
-
+    return Producer({
+        'bootstrap.servers': KAFKA_BROKER,
+        'linger.ms': 0,  # clave para envío inmediato
+        'batch.size': 1, # opcional
+        })
 
 def create_consumer():
-    """Crea un consumidor de Kafka."""
+    """Crea y configura un consumidor de Kafka con mejor manejo de errores."""
     return Consumer({
         'bootstrap.servers': KAFKA_BROKER,
-        'group.id': 'python-consumer-group',
-        'auto.offset.reset': 'earliest'
+        'group.id': 'evolutioners-consumer-group',
+        'auto.offset.reset': 'earliest',
+        'enable.auto.commit': True,  # Asegura que los offsets se confirmen automáticamente
+        'session.timeout.ms': 60000,  # Evita desconexiones prematuras
+        'heartbeat.interval.ms': 15000,  # Reduce el riesgo de expulsión por latencia
+        'max.poll.interval.ms': 300000,  # Permite más tiempo para procesar mensajes
     })

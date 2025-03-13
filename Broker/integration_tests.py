@@ -19,6 +19,11 @@ TOPIC_GENETIC_ALGORITHM_RESPONSE = f"{TOPIC_GENETIC_ALGORITHM}-response"
 
 TOPIC_SELECTION_ALGORITHM = "select-best-architectures"
 TOPIC_SELECTION_ALGORITHM_RESPONSE = f"{TOPIC_SELECTION_ALGORITHM}-response"
+
+# topic for create child
+TOPIC_CREATE_CHILD = "create-child"
+TOPIC_CREATE_CHILD_RESPONSE = f"{TOPIC_CREATE_CHILD}-response"
+
 def create_producer():
     producer_config = {"bootstrap.servers": KAFKA_BROKER}
     return Producer(producer_config)
@@ -39,7 +44,7 @@ def create_consumer(group_id='consumer-group'):
         'auto.offset.reset': 'earliest'
     }
     consumer = Consumer(consumer_config)
-    consumer.subscribe([TOPIC_RESPONSE, TOPIC_EVALUATE_RESPONSE, TOPIC_SELECTION_ALGORITHM_RESPONSE, TOPIC_GENETIC_ALGORITHM_RESPONSE])
+    consumer.subscribe([TOPIC_RESPONSE, TOPIC_EVALUATE_RESPONSE, TOPIC_SELECTION_ALGORITHM_RESPONSE, TOPIC_GENETIC_ALGORITHM_RESPONSE, TOPIC_CREATE_CHILD_RESPONSE])
     return consumer
 
 def consume_message(consumer, max_wait=1000):
@@ -365,22 +370,109 @@ def test_genetic_algorithm():
     return response
 
 
+def test_create_child():
+    """
+    Test que envía un mensaje para crear un hijo a partir de dos modelos existentes
+    y comprueba que se recibe una respuesta con status_code 200.
+    """
+    # Primero necesitamos crear una población inicial
+    response = test_create_population()
+    assert response is not None, "No se pudo crear la población inicial"
+    
+    # Obtenemos el UUID de la población creada
+    uuid = response.get("message", {}).get("uuid")
+    assert uuid is not None, "No se encontró el UUID de la población"
+    
+    # Cargamos los modelos para obtener dos IDs
+    path = response.get("message", {}).get("path")
+    assert path is not None, "No se encontró la ruta del archivo"
+    assert os.path.exists(path), f"El archivo {path} no existe"
+    
+    with open(path, "r", encoding="utf-8") as f:
+        models = json.load(f)
+    
+    # Tomamos los dos primeros modelos
+    model_ids = list(models.keys())
+    assert len(model_ids) >= 2, "No hay suficientes modelos para crear un hijo"
+    
+    # Preparamos los parámetros para crear un hijo
+    params = {
+        "model_id": model_ids[0],
+        "second_model_id": model_ids[1],
+        "uuid": uuid
+    }
+    message = json.dumps(params)
+    
+    # Enviamos el mensaje al tópico create-child
+    producer = create_producer()
+    send_message(producer, TOPIC_CREATE_CHILD, key="create_child", value=message)
+    
+    # Esperamos la respuesta
+    consumer = create_consumer()
+    response = consume_message(consumer, max_wait=1000)
+    consumer.close()
+    
+    # Verificamos la respuesta
+    assert response is not None, "No se recibió respuesta del tópico"
+    assert response.get("status_code") == 200, f"El status_code es {response.get('status_code')} en lugar de 200"
+    
+    # Verificamos que la respuesta contiene un mensaje con la información del modelo hijo
+    message = response.get("message", {})
+    assert message, "La respuesta no contiene información del modelo hijo"
+    
+    print("✅ Test de creación de hijo finalizado correctamente.")
+    return response
+
+
+def test_create_child_missing_model_id():
+    """
+    Test que envía un mensaje sin 'model_id' y comprueba que la respuesta tenga status_code 400.
+    """
+    # Primero necesitamos crear una población inicial
+    response = test_create_population()
+    uuid = response.get("message", {}).get("uuid")
+    
+    # Preparamos los parámetros sin model_id
+    params = {
+        # 'model_id' omitido intencionadamente
+        "second_model_id": "1",  # Usamos un ID genérico
+        "uuid": uuid
+    }
+    message = json.dumps(params)
+    
+    producer = create_producer()
+    send_message(producer, TOPIC_CREATE_CHILD, key="create_child", value=message)
+    
+    consumer = create_consumer()
+    response = consume_message(consumer, max_wait=10)
+    consumer.close()
+    
+    assert response is not None, "No se recibió respuesta del tópico"
+    assert response.get("status_code") == 400, f"Se esperaba status_code 400, pero se recibió {response.get('status_code')}"
+    print("✅ Test sin 'model_id' finalizado correctamente con status_code 400.")
+    return response
+
+
 if __name__ == "__main__":
-    print("Ejecutando test de población válida...")
-    test_create_population()
-    print("\nEjecutando test sin 'num_channels'...")
-    test_create_population_missing_num_channels()
-    print("\nEjecutando test sin 'px_h'...")
-    test_create_population_missing_px_h()
-    print("\nEjecutando test sin 'px_w'...")
-    test_create_population_missing_px_w()
-    print("\nEjecutando test sin 'num_classes'...")
-    test_create_population_missing_num_classes()
-    print("\nEjecutando test sin 'batch_size'...")
-    test_create_population_missing_batch_size()
-    print("\nEjecutando test sin 'num_poblation'...")
-    test_create_population_missing_num_poblation()
-    #print("\nEjecutando test de evaluación de población...")
-    #test_evaluate_population()
-    print("\nEjecutando test de algoritmo genético...")
-    test_genetic_algorithm()
+    # print("Ejecutando test de población válida...")
+    # test_create_population()
+    # print("\nEjecutando test sin 'num_channels'...")
+    # test_create_population_missing_num_channels()
+    # print("\nEjecutando test sin 'px_h'...")
+    # test_create_population_missing_px_h()
+    # print("\nEjecutando test sin 'px_w'...")
+    # test_create_population_missing_px_w()
+    # print("\nEjecutando test sin 'num_classes'...")
+    # test_create_population_missing_num_classes()
+    # print("\nEjecutando test sin 'batch_size'...")
+    # test_create_population_missing_batch_size()
+    # print("\nEjecutando test sin 'num_poblation'...")
+    # test_create_population_missing_num_poblation()
+    # print("\nEjecutando test de evaluación de población...")
+    # test_evaluate_population()
+    # print("\nEjecutando test de algoritmo genético...")
+    # test_genetic_algorithm()
+    print("\nEjecutando test de creación de hijo...")
+    test_create_child()
+    print("\nEjecutando test sin 'model_id'...")
+    test_create_child_missing_model_id()

@@ -16,6 +16,7 @@ from utils import (
     get_possible_models,
     create_producer,
     produce_message,
+    create_consumer
 )
 from responses import (
     ok_message,
@@ -27,15 +28,9 @@ from responses import (
 )
 
 # Kafka configuration
-KAFKA_CONFIG = {
-    'bootstrap.servers': 'localhost:9092',
-    'group.id': 'consumer-group',
-    'auto.offset.reset': 'earliest'
-}
-
 # Function to create a Kafka consumer
 def create_kafka_consumer():
-    consumer = Consumer(KAFKA_CONFIG)
+    consumer = create_consumer()
     consumer.subscribe(list(TOPIC_PROCESSORS.keys()))  # Subscribe to all topics
     return consumer
 

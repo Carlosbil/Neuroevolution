@@ -4,7 +4,9 @@ import uuid
 import os
 import json
 from confluent_kafka import Producer, Consumer, KafkaException, KafkaError
-
+import signal
+import sys
+import time
 KAFKA_BROKER = "localhost:9092"
 
 # Configuración global del logger, incluyendo el nombre del archivo y la línea
@@ -75,13 +77,21 @@ def produce_message(producer, topic, message, times=10):
 
 def create_producer():
     """Crea un productor de Kafka."""
-    return Producer({'bootstrap.servers': KAFKA_BROKER})
+    return Producer({
+        'bootstrap.servers': KAFKA_BROKER,
+        'linger.ms': 0,  # clave para envío inmediato
+        'batch.size': 1, # opcional
+        })
 
 
 def create_consumer():
-    """Crea un consumidor de Kafka."""
+    """Crea y configura un consumidor de Kafka con mejor manejo de errores."""
     return Consumer({
         'bootstrap.servers': KAFKA_BROKER,
-        'group.id': 'python-consumer-group',
-        'auto.offset.reset': 'earliest'
+        'group.id': 'broker-consumer-group',
+        'auto.offset.reset': 'earliest',
+        'enable.auto.commit': True,  # Asegura que los offsets se confirmen automáticamente
+        'session.timeout.ms': 60000,  # Evita desconexiones prematuras
+        'heartbeat.interval.ms': 15000,  # Reduce el riesgo de expulsión por latencia
+        'max.poll.interval.ms': 300000,  # Permite más tiempo para procesar mensajes
     })
