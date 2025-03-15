@@ -74,7 +74,7 @@ def check_params(params: Dict) -> bool:
     required_keys = ['Number of Convolutional Layers', 'Number of Fully Connected Layers',
                      'filters', 'kernel_sizes', 'Dropout Rate', 'Activation Functions',
                      'num_channels', 'px_h', 'px_w', 'num_classes', 'Batch Size',
-                     'Optimizer', 'Learning Rate']
+                     'Optimizer', 'Learning Rate', 'uuid', 'model_id']
     for key in required_keys:
         if key not in params:
             logger.error(f"Missing required parameter: {key}")

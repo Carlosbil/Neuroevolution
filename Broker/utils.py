@@ -73,7 +73,7 @@ def produce_message(producer, topic, message, times=10):
     for i in range(times):
         producer.produce(topic, message.encode('utf-8'))
         producer.flush()
-        print(f"[✅] Mensaje enviado: {message} - Tópico: {topic} - {i} ")
+        logger.info(f"✅ Mensaje enviado: {message} - Tópico: {topic} - {i} ")
 
 def create_producer():
     """Crea un productor de Kafka."""

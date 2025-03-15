@@ -24,4 +24,4 @@ def handle_create_child(topic, params):
         'message': 'CNN model crossed and mutated successfully',
         'model': mutated_individual,
     }
-    return ok_message(response)
+    return ok_message(topic,                                                                                                                                                                                                                                                            response)

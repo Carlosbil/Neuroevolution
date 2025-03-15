@@ -1,5 +1,5 @@
 from utils import logger, get_dataset_params, get_individual, build_cnn_from_individual, check_params
-from responses import ok_message, bad_model_message
+from responses import ok_message, bad_model_message, response_message
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
 
@@ -44,11 +44,18 @@ def handle_create_cnn_model(topic, params):
         response = {
             'message': 'CNN model created, trained and evaluated successfully',
             'score': accuracy,
+            'uuid': params.get('uuid'),
+            'model_id': params.get('model_id')
         }
         return ok_message(topic, response)
     except ValueError as e:
-        return bad_model_message(topic)
+        response = {
+            'message': f"Error creating model: {e}",
+            'uuid': params.get('uuid'),
+            'model_id': params.get('model_id')
+        }
+        return response_message(topic, response, 500)
     
     except Exception as e:
         logger.error(f"Error creating model: {e}")
-        return bad_model_message(topic)
+        return response_message(topic, response, 500)
