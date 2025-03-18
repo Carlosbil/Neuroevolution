@@ -57,5 +57,10 @@ def handle_create_cnn_model(topic, params):
         return response_message(topic, response, 500)
     
     except Exception as e:
+        response = {
+            'message': f"Error creating model: {e}",
+            'uuid': params.get('uuid'),
+            'model_id': params.get('model_id')
+        }
         logger.error(f"Error creating model: {e}")
         return response_message(topic, response, 500)

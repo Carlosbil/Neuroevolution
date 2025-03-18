@@ -54,3 +54,44 @@ services:
       kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --replication-factor 1 --partitions 1 --topic select-best-architectures-response &&
       echo '-----------------Topics created----------------'"
 
+  broker:
+    build:
+      context: ./Broker
+    container_name: broker
+    restart: always
+    depends_on:
+      kafka:
+        condition: service_started
+      kafka-init:
+        condition: service_completed_successfully
+    environment:
+      KAFKA_BROKER: kafka:29092
+    volumes:
+      - ./Broker/models:/app/models
+
+  genome:
+    build:
+      context: ./Genome
+    container_name: genome
+    restart: always
+    depends_on:
+      kafka:
+        condition: service_started
+      kafka-init:
+        condition: service_completed_successfully
+    environment:
+      KAFKA_BROKER: kafka:29092
+
+  # evolutioners:
+  #   build:
+  #     context: ./Evolutioners
+  #   container_name: evolutioners
+  #   restart: always
+  #   depends_on:
+  #     kafka:
+  #       condition: service_started
+  #     kafka-init:
+  #       condition: service_completed_successfully
+  #   environment:
+  #     KAFKA_BROKER: kafka:29092
+

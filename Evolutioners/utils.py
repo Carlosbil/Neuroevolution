@@ -4,6 +4,7 @@ import torch.nn as nn
 import torch.optim as optim
 import logging
 import colorlog
+import os
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
 from tqdm import tqdm  # Import tqdm for progress bar
@@ -12,7 +13,7 @@ import signal
 import sys
 import time
 
-KAFKA_BROKER = "localhost:9092"
+KAFKA_BROKER = os.environ.get("KAFKA_BROKER", "localhost:9092")
 
 
 # Configuración global del logger, incluyendo el nombre del archivo y la línea

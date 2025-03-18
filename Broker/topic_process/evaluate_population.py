@@ -34,7 +34,8 @@ def process_evaluate_population(topic, data):
             topic_to_sed = "evolutioner-create-cnn-model"
             response_topic = f"{topic_to_sed}-response"
             produce_message(producer, topic_to_sed, json.dumps(json_to_send), times=1)
-            return
+
+        return
     except Exception as e:
         logger.error(f"Error in evaluate_population: {e}")
         runtime_error_message(topic)

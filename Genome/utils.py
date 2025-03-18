@@ -4,11 +4,12 @@ import torch.optim as optim
 import logging
 import colorlog
 import random
+import os
 from confluent_kafka import Producer, Consumer
 import signal
 import sys
 import time
-KAFKA_BROKER = "localhost:9092"
+KAFKA_BROKER = os.environ.get("KAFKA_BROKER", "localhost:9092")
 
 
 # Configuración global del logger, incluyendo el nombre del archivo y la línea

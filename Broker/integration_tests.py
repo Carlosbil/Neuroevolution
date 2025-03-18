@@ -1,6 +1,7 @@
 import json
 import os
 import time
+import re
 from confluent_kafka import Producer, Consumer, KafkaError
 
 # Configuración global de Kafka
@@ -106,6 +107,24 @@ def consume_all_messages(consumer, topics, max_wait=10000):
     return received_messages
 
 
+def fix_path(path):
+    """
+    Fixes a path by extracting the UUID and creating a relative path to the models directory.
+    
+    :param path: The original path (e.g., '/app/models/uuid.json')
+    :return: The fixed path (e.g., './models/uuid.json')
+    """
+    if path is None:
+        return None
+    
+    time.sleep(2)
+    # Extract the UUID part (assuming it's a UUID followed by .json)
+    uuid_match = re.search(r'([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}\.json)', path)
+    if uuid_match:
+        return f"./Broker/models/{uuid_match.group(1)}"
+    return path
+
+
 def check_response(response):
     """
     Verifica que la respuesta tenga status_code 200, que el archivo exista
@@ -117,9 +136,12 @@ def check_response(response):
     message = response.get("message", {})
     path = message.get("path")
     assert path is not None, "No se encontró la ruta del archivo en la respuesta"
-    assert os.path.exists(path), f"El archivo {path} no existe"
     
-    with open(path, "r", encoding="utf-8") as f:
+    # Fix the path before checking if it exists
+    fixed_path = fix_path(path)
+    assert os.path.exists(fixed_path), f"El archivo {fixed_path} no existe"
+    
+    with open(fixed_path, "r", encoding="utf-8") as f:
         population_data = json.load(f)
     assert len(population_data) == 10, f"Se esperaban 10 individuos, pero se encontraron {len(population_data)}"
 
@@ -386,9 +408,12 @@ def test_create_child():
     # Cargamos los modelos para obtener dos IDs
     path = response.get("message", {}).get("path")
     assert path is not None, "No se encontró la ruta del archivo"
-    assert os.path.exists(path), f"El archivo {path} no existe"
     
-    with open(path, "r", encoding="utf-8") as f:
+    # Fix the path before checking if it exists
+    fixed_path = fix_path(path)
+    assert os.path.exists(fixed_path), f"El archivo {fixed_path} no existe"
+    
+    with open(fixed_path, "r", encoding="utf-8") as f:
         models = json.load(f)
     
     # Tomamos los dos primeros modelos

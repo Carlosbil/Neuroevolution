@@ -3,11 +3,33 @@ import colorlog
 import uuid
 import os
 import json
+import argparse
 from confluent_kafka import Producer, Consumer, KafkaException, KafkaError
 import signal
 import sys
 import time
-KAFKA_BROKER = "localhost:9092"
+
+# Configuración de variables de entorno
+KAFKA_BROKER = os.environ.get("KAFKA_BROKER", "localhost:9092")
+STORAGE_PATH = os.environ.get("BROKER_STORAGE_PATH", os.path.join(os.path.dirname(__file__), 'models'))
+
+# Configuración de argumentos de línea de comandos
+def parse_args():
+    parser = argparse.ArgumentParser(description='Broker service for Neuroevolution')
+    parser.add_argument('--storage-path', type=str, help='Path to store model files')
+    return parser.parse_args()
+
+# Obtener la ruta de almacenamiento configurada
+def get_storage_path():
+    args = parse_args()
+    if args.storage_path:
+        path = args.storage_path
+    else:
+        path = STORAGE_PATH
+    
+    # Asegurar que el directorio existe
+    os.makedirs(path, exist_ok=True)
+    return path
 
 # Configuración global del logger, incluyendo el nombre del archivo y la línea
 logging.basicConfig(
@@ -61,8 +83,8 @@ def get_possible_models(models_uuid):
     """ 
     Get the possible models from the given UUID.
     """
-    # Load possible models from ./models/uuid.json
-    path = os.path.join(os.path.dirname(__file__), 'models', f'{models_uuid}.json')
+    # Load possible models from the configured storage path
+    path = os.path.join(get_storage_path(), f'{models_uuid}.json')
     with open(path, 'r') as file:
         possible_models = json.load(file)
     return possible_models

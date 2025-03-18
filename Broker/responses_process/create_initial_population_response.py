@@ -13,7 +13,9 @@ def process_create_initial_population_response(topic, response):
             message = response.get('message', {})
             models = message.get('models', {})
             models_uuid = generate_uuid()
-            path = os.path.join(os.path.dirname(__file__),'..', 'models', f'{models_uuid}.json')
+            # Use the configurable storage path
+            from utils import get_storage_path
+            path = os.path.join(get_storage_path(), f'{models_uuid}.json')
 
             with open(path, 'w') as file:
                 json.dump(models, file)

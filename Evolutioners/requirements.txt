@@ -1,0 +1,6 @@
+torch
+torchvision
+tqdm
+colorlog
+confluent-kafka
+requests
