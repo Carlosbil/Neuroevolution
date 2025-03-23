@@ -3,6 +3,7 @@ import os
 import time
 import re
 from confluent_kafka import Producer, Consumer, KafkaError
+from database import get_population, population_exists, get_db_connection
 
 # Configuración global de Kafka
 KAFKA_BROKER = "localhost:9092"  # Cambia esto según tu configuración
@@ -115,48 +116,29 @@ def consume_all_messages(consumer, topics, max_wait=10000):
     return received_messages
 
 
-def fix_path(path):
-    """
-    Fixes a path by extracting the UUID and creating a relative path to the models directory.
-    
-    :param path: The original path (e.g., '/app/models/uuid.json')
-    :return: The fixed path (e.g., './models/uuid.json')
-    """
-    if path is None:
-        return None
-    
-    time.sleep(2)
-    # Extract the UUID part (assuming it's a UUID followed by .json)
-    uuid_match = re.search(r'([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}.*\.json)', path)
-    if uuid_match:
-        return f"./Broker/models/{uuid_match.group(1)}"
-    return path
-
-
 def check_response(response):
     """
-    Verifica que la respuesta tenga status_code 200, que el archivo exista
-    y que contenga 10 individuos.
+    Verifica que la respuesta tenga status_code 200 y que la población exista en la base de datos
+    con 10 individuos.
     """
     assert response is not None, "No se recibió respuesta del tópico"
     assert response.get("status_code") == 200, f"El status_code es {response.get('status_code')} en lugar de 200"
     
     message = response.get("message", {})
-    path = message.get("path")
-    assert path is not None, "No se encontró la ruta del archivo en la respuesta"
+    uuid = message.get("uuid")
+    assert uuid is not None, "No se encontró el UUID de la población en la respuesta"
     
-    # Fix the path before checking if it exists
-    fixed_path = fix_path(path)
-    assert os.path.exists(fixed_path), f"El archivo {fixed_path} no existe"
+    # Verificar que la población existe en la base de datos
+    assert population_exists(uuid), f"La población con UUID {uuid} no existe en la base de datos"
     
-    with open(fixed_path, "r", encoding="utf-8") as f:
-        population_data = json.load(f)
+    # Obtener los modelos de la población desde la base de datos
+    population_data = get_population(uuid)
     assert len(population_data) == 10, f"Se esperaban 10 individuos, pero se encontraron {len(population_data)}"
 
 def test_create_population():
     """
     Test que envía un mensaje válido y comprueba que se recibe una respuesta con status_code 200,
-    que el archivo indicado existe y contiene 10 individuos.
+    que la población existe en la base de datos y contiene 10 individuos.
     """
     params = DATASET_PARAMS
     message = json.dumps(params)
@@ -221,7 +203,7 @@ def test_create_population_missing_px_h():
     
     assert response is not None, "No se recibió respuesta del tópico"
     assert response.get("status_code") == 400, f"Se esperaba status_code 400, pero se recibió {response.get('status_code')}"
-    print("✅ Test sin 'num_channels' finalizado correctamente con status_code 400.")
+    print("✅ Test sin 'px_h' finalizado correctamente con status_code 400.")
     return response
 
 def test_create_population_missing_px_w():
@@ -332,13 +314,12 @@ def test_create_population_missing_num_poblation():
 def test_evaluate_population():
     """
     Test que envía un mensaje válido y comprueba que se recibe una respuesta con status_code 200,
-    que el archivo indicado existe y contiene 10 individuos.
+    que la población existe en la base de datos y contiene 10 individuos con puntuaciones.
     """
     
     #First we need to create a population
     
-    uuid = test_create_population().get("message", {})
-    uuid = uuid.get("uuid", '3d91192b-68f2-4766-9e27-08cb7bf56733')
+    uuid = test_create_population().get("message", {}).get("uuid", '3d91192b-68f2-4766-9e27-08cb7bf56733')
     params = {
         "uuid": uuid
     }
@@ -411,13 +392,9 @@ def test_create_evaluate_select_workflow():
     assert models_uuid is not None, "No se encontró el UUID de la población"
     print(f"Población creada con UUID: {models_uuid}")
     
-    # Cargar los modelos para verificar que hay 10 individuos
-    path = initial_response.get("message", {}).get("path")
-    fixed_path = fix_path(path)
-    assert os.path.exists(fixed_path), f"El archivo {fixed_path} no existe"
-    
-    with open(fixed_path, "r", encoding="utf-8") as f:
-        models = json.load(f)
+    # Verificar que la población existe en la base de datos y tiene 10 individuos
+    assert population_exists(models_uuid), f"La población con UUID {models_uuid} no existe en la base de datos"
+    models = get_population(models_uuid)
     assert len(models) == 10, f"Se esperaban 10 individuos, pero se encontraron {len(models)}"
     
     # Paso 2: Enviar mensaje para evaluar la población
@@ -505,21 +482,17 @@ def test_create_evaluate_select_workflow():
     assert selection_response is not None, "No se recibió respuesta de selección"
     assert selection_response.get("status_code") == 200, f"El status_code es {selection_response.get('status_code')} en lugar de 200"
     
-    # Verificar que se creó un nuevo archivo con los modelos seleccionados
+    # Verificar que se creó una nueva población con los modelos seleccionados
     selection_message = selection_response.get("message", {})
     new_uuid = selection_message.get("uuid")
-    new_path = selection_message.get("path")
     
     assert new_uuid is not None, "No se encontró el UUID de los modelos seleccionados"
-    assert new_path is not None, "No se encontró la ruta del archivo de modelos seleccionados"
     
-    # Verificar que el nuevo archivo existe
-    fixed_new_path = fix_path(new_path)
-    assert os.path.exists(fixed_new_path), f"El archivo {fixed_new_path} no existe"
+    # Verificar que la nueva población existe en la base de datos
+    assert population_exists(new_uuid), f"La población con UUID {new_uuid} no existe en la base de datos"
     
     # Cargar los modelos seleccionados para verificar que son el 50% de la población original
-    with open(fixed_new_path, "r", encoding="utf-8") as f:
-        selected_models = json.load(f)
+    selected_models = get_population(new_uuid)
     
     # Verificar que se seleccionó el 50% de la población
     assert len(selected_models) == 5, f"Se esperaban 5 modelos seleccionados (50% de 10), pero se encontraron {len(selected_models)}"
@@ -578,8 +551,8 @@ def test_create_child_2dd():
     print("✅ Test de flujo completo finalizado correctamente.")
     return response
 if __name__ == "__main__":
-    # print("Ejecutando test de población válida...")
-    # test_create_population()
+    print("Ejecutando test de población válida...")
+    test_create_population()
     # print("\nEjecutando test sin 'num_channels'...")
     # test_create_population_missing_num_channels()
     # print("\nEjecutando test sin 'px_h'...")
@@ -600,6 +573,6 @@ if __name__ == "__main__":
     # test_create_evaluate_select_workflow()
     # print("\nEjecutando test de flujo completo: crear, evaluar, seleccionar y crear hijo...")
     # test_create_child_after_select_workflow()
-    print("\nEjecutando test de crear hijo...")
-    test_create_child_2dd()
-    print("✅ Todos los tests han pasado correctamente.")
+    # print("\nEjecutando test de crear hijo...")
+    # test_create_child_2dd()
+    # print("✅ Todos los tests han pasado correctamente.")

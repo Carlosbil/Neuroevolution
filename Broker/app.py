@@ -6,7 +6,6 @@ from confluent_kafka import Consumer, KafkaException, KafkaError
 from topic_process.create_initial_population import process_create_initial_population
 from topic_process.evaluate_population import process_evaluate_population
 from topic_process.create_child import process_create_child
-from topic_process.genetic_algorithm import process_genetic_algorithm
 from topic_process.select_best_architectures import process_select_best_architectures
 from responses_process.create_initial_population_response import process_create_initial_population_response
 from responses_process.evaluate_population_response import process_evaluate_population_response
@@ -44,7 +43,6 @@ TOPIC_PROCESSORS = {
     "create-child": process_create_child,
     "create-initial-population": process_create_initial_population,
     "evaluate-population": process_evaluate_population,
-    "start-hybrid-neat": process_genetic_algorithm,
     "select-best-architectures": process_select_best_architectures,
     "genome-create-initial-population-response": process_create_initial_population_response,
     "evolutioner-create-cnn-model-response": process_evaluate_population_response,

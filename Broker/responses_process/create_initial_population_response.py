@@ -1,10 +1,9 @@
-import os
 import json
 import requests
 from utils import logger, generate_uuid, check_initial_poblation, create_producer, create_consumer, produce_message
 from responses import ok_message, bad_model_message, runtime_error_message, response_message
 from confluent_kafka import KafkaError
-from utils import get_storage_path
+from database import save_population, save_model
 def process_create_initial_population_response(topic, response):
     """Process messages from the 'create_initial_population' topic and send a response to Kafka."""
     try:
@@ -13,12 +12,14 @@ def process_create_initial_population_response(topic, response):
             message = response.get('message', {})
             models = message.get('models', {})
             models_uuid = generate_uuid()
-            # Use the configurable storage path
             
-            path = os.path.join(get_storage_path(), f'{models_uuid}.json')
-
-            with open(path, 'w') as file:
-                json.dump(models, file)
+            # Save population to database
+            save_population(models_uuid)
+            
+            # Save each model to database
+            for model_id, model_data in models.items():
+                save_model(models_uuid, model_id, model_data)
+                
             message = {
                 "uuid": models_uuid,
             }
@@ -27,8 +28,7 @@ def process_create_initial_population_response(topic, response):
             # now go to step_2, evaluate_population
             topic_to_send = "evaluate-population"
             data = {
-                "uuid": models_uuid,
-                "path": path
+                "uuid": models_uuid
             }
             message = json.dumps(data)
             producer = create_producer()
