@@ -4,6 +4,7 @@ import requests
 import json
 import os
 from confluent_kafka import KafkaError
+from utils import get_storage_path
 
 
 def process_evaluate_population_response(topic, data):
@@ -30,13 +31,13 @@ def process_evaluate_population_response(topic, data):
 
             with open(path, 'r') as file:
                 models = json.load(file)
-            score = data.get("message", {}).get("score")
-            if score is not None:
-                logger.info(f"Model {model_id} evaluated with score {score}")
-                models[model_id]["score"] = score 
-            else:
-                logger.error(f"Error evaluating model {model_id}: No score in response")
-                models[model_id]["score"] = 0
+                score = data.get("message", {}).get("score")
+                if score is not None:
+                    logger.info(f"Model {model_id} evaluated with score {score}")
+                    models[model_id]["score"] = score 
+                else:
+                    logger.error(f"Error evaluating model {model_id}: No score in response")
+                    models[model_id]["score"] = 0
         else:
             logger.error(f"Error evaluating model {model_id}: {data.get('status_code')}")
             models[model_id]["score"] = 0

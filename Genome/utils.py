@@ -96,14 +96,14 @@ def create_genome(individual, dataset_params):
     """
     logger.debug(f"Creating genome with individual: {individual} and dataset_params: {dataset_params}")
     genome = {
-        'Number of Convolutional Layers': individual['num_conv_layers'],
-        'Number of Fully Connected Layers': individual['fully_connected'],
-        'Number of Nodes in Each Layer': [64] * individual['fully_connected'],
-        'Activation Functions': [0] * individual['fully_connected'],
-        'Dropout Rate': individual['dropout'],
-        'Learning Rate': dataset_params['learning_rate'],
+        'Number of Convolutional Layers': individual['Number of Convolutional Layers'],
+        'Number of Fully Connected Layers': individual['Number of Fully Connected Layers'],
+        'Number of Nodes in Each Layer': [64] * individual['Number of Fully Connected Layers'],
+        'Activation Functions': [0] * individual['Number of Fully Connected Layers'],
+        'Dropout Rate': individual['Dropout Rate'],
+        'Learning Rate': individual['Learning Rate'],
         'Batch Size': dataset_params['batch_size'],
-        'Optimizer': MAP_OPTIMIZERS[dataset_params['optimizer']],
+        'Optimizer': MAP_OPTIMIZERS[individual['Optimizer'].lower()],
         'num_channels': dataset_params['num_channels'],
         'px_h': dataset_params['px_h'],
         'px_w': dataset_params['px_w'],

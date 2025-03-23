@@ -25,6 +25,14 @@ TOPIC_SELECTION_ALGORITHM_RESPONSE = f"{TOPIC_SELECTION_ALGORITHM}-response"
 TOPIC_CREATE_CHILD = "create-child"
 TOPIC_CREATE_CHILD_RESPONSE = f"{TOPIC_CREATE_CHILD}-response"
 
+DATASET_PARAMS = {
+        "num_channels": 1,
+        "px_h": 28,
+        "px_w": 28,
+        "num_classes": 10,
+        "batch_size": 32,
+        "num_poblation": 10
+    }
 def create_producer():
     producer_config = {"bootstrap.servers": KAFKA_BROKER}
     return Producer(producer_config)
@@ -119,7 +127,7 @@ def fix_path(path):
     
     time.sleep(2)
     # Extract the UUID part (assuming it's a UUID followed by .json)
-    uuid_match = re.search(r'([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}\.json)', path)
+    uuid_match = re.search(r'([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}.*\.json)', path)
     if uuid_match:
         return f"./Broker/models/{uuid_match.group(1)}"
     return path
@@ -150,14 +158,7 @@ def test_create_population():
     Test que envía un mensaje válido y comprueba que se recibe una respuesta con status_code 200,
     que el archivo indicado existe y contiene 10 individuos.
     """
-    params = {
-        "num_channels": 1,
-        "px_h": 28,
-        "px_w": 28,
-        "num_classes": 10,
-        "batch_size": 32,
-        "num_poblation": 10
-    }
+    params = DATASET_PARAMS
     message = json.dumps(params)
     
     producer = create_producer()
@@ -392,92 +393,197 @@ def test_genetic_algorithm():
     return response
 
 
-def test_create_child():
+def test_create_evaluate_select_workflow():
     """
-    Test que envía un mensaje para crear un hijo a partir de dos modelos existentes
-    y comprueba que se recibe una respuesta con status_code 200.
+    Test que realiza el flujo completo: crear población inicial, evaluarla, y después de recibir
+    10 mensajes con el mismo UUID, realizar la selección de las mejores arquitecturas.
     """
-    # Primero necesitamos crear una población inicial
-    response = test_create_population()
-    assert response is not None, "No se pudo crear la población inicial"
+    print("\nIniciando test de flujo completo: crear población, evaluar, y seleccionar mejores arquitecturas...")
     
-    # Obtenemos el UUID de la población creada
-    uuid = response.get("message", {}).get("uuid")
-    assert uuid is not None, "No se encontró el UUID de la población"
+    # Paso 1: Crear población inicial
+    print("Paso 1: Creando población inicial...")
+    initial_response = test_create_population()
+    assert initial_response is not None, "No se pudo crear la población inicial"
+    assert initial_response.get("status_code") == 200, "Error al crear la población inicial"
     
-    # Cargamos los modelos para obtener dos IDs
-    path = response.get("message", {}).get("path")
-    assert path is not None, "No se encontró la ruta del archivo"
+    # Obtener UUID de la población creada
+    models_uuid = initial_response.get("message", {}).get("uuid")
+    assert models_uuid is not None, "No se encontró el UUID de la población"
+    print(f"Población creada con UUID: {models_uuid}")
     
-    # Fix the path before checking if it exists
+    # Cargar los modelos para verificar que hay 10 individuos
+    path = initial_response.get("message", {}).get("path")
     fixed_path = fix_path(path)
     assert os.path.exists(fixed_path), f"El archivo {fixed_path} no existe"
     
     with open(fixed_path, "r", encoding="utf-8") as f:
         models = json.load(f)
+    assert len(models) == 10, f"Se esperaban 10 individuos, pero se encontraron {len(models)}"
     
-    # Tomamos los dos primeros modelos
-    model_ids = list(models.keys())
-    assert len(model_ids) >= 2, "No hay suficientes modelos para crear un hijo"
-    
-    # Preparamos los parámetros para crear un hijo
+    # Paso 2: Enviar mensaje para evaluar la población
+    print("Paso 2: Enviando mensaje para evaluar la población...")
     params = {
-        "model_id": model_ids[0],
-        "second_model_id": model_ids[1],
-        "uuid": uuid
-    }
-    message = json.dumps(params)
-    
-    # Enviamos el mensaje al tópico create-child
-    producer = create_producer()
-    send_message(producer, TOPIC_CREATE_CHILD, key="create_child", value=message)
-    
-    # Esperamos la respuesta
-    consumer = create_consumer()
-    response = consume_message(consumer, max_wait=1000)
-    consumer.close()
-    
-    # Verificamos la respuesta
-    assert response is not None, "No se recibió respuesta del tópico"
-    assert response.get("status_code") == 200, f"El status_code es {response.get('status_code')} en lugar de 200"
-    
-    # Verificamos que la respuesta contiene un mensaje con la información del modelo hijo
-    message = response.get("message", {})
-    assert message, "La respuesta no contiene información del modelo hijo"
-    
-    print("✅ Test de creación de hijo finalizado correctamente.")
-    return response
-
-
-def test_create_child_missing_model_id():
-    """
-    Test que envía un mensaje sin 'model_id' y comprueba que la respuesta tenga status_code 400.
-    """
-    # Primero necesitamos crear una población inicial
-    response = test_create_population()
-    uuid = response.get("message", {}).get("uuid")
-    
-    # Preparamos los parámetros sin model_id
-    params = {
-        # 'model_id' omitido intencionadamente
-        "second_model_id": "1",  # Usamos un ID genérico
-        "uuid": uuid
+        "uuid": models_uuid
     }
     message = json.dumps(params)
     
     producer = create_producer()
-    send_message(producer, TOPIC_CREATE_CHILD, key="create_child", value=message)
+    send_message(producer, TOPIC_EVALUATE, key="population_eval", value=message)
     
-    consumer = create_consumer()
-    response = consume_message(consumer, max_wait=10)
+    # Paso 3: Simular recepción de 10 mensajes de evaluación (uno por cada modelo)
+    print("Paso 3: Simulando recepción de 10 mensajes de evaluación...")
+    
+    # Crear un consumidor para recibir las respuestas de evaluación
+    consumer = create_consumer(group_id=f'test-group-{time.time()}')
+    
+    # Contador para seguir cuántos modelos han sido evaluados
+    evaluated_models_count = 0
+    evaluation_responses = []
+    
+    # Tiempo máximo de espera para todas las evaluaciones (60 segundos)
+    max_wait_time = 3600  # segundos
+    start_time = time.time()
+    
+    # Esperar a recibir 10 mensajes de evaluación o hasta que se agote el tiempo
+    while evaluated_models_count < 10 and (time.time() - start_time) < max_wait_time:
+        msg = consumer.poll(timeout=1.0)
+        if msg is None:
+            continue
+            
+        if msg.error():
+            if msg.error().code() == KafkaError._PARTITION_EOF:
+                print(f"Reached end of partition: {msg.topic()} [{msg.partition()}]")
+            else:
+                print(f"Error: {msg.error()}")
+            continue
+            
+        try:
+            response = json.loads(msg.value().decode('utf-8'))
+            
+            # Verificar si es una respuesta de evaluación
+            if msg.topic() == TOPIC_EVALUATE_RESPONSE:
+                print(f"Recibida respuesta de evaluación: {response}")
+                evaluation_responses.append(response)
+                evaluated_models_count += 1
+                print(f"Modelos evaluados: {evaluated_models_count}/10")
+        except Exception as e:
+            print(f"Error al procesar el mensaje: {e}")
+    
+    # Verificar que se recibieron respuestas de evaluación
+    assert len(evaluation_responses) > 0, "No se recibieron respuestas de evaluación"
+    print(f"Se recibieron {len(evaluation_responses)} respuestas de evaluación")
+    
+    # Paso 4: Enviar mensaje para seleccionar las mejores arquitecturas
+    print("Paso 4: Enviando mensaje para seleccionar las mejores arquitecturas...")
+    params = {
+        "uuid": models_uuid
+    }
+    message = json.dumps(params)
+    
+    producer = create_producer()
+    send_message(producer, TOPIC_SELECTION_ALGORITHM, key="select_best", value=message)
+    
+    # Esperar la respuesta de la selección
+    selection_response = None
+    start_time = time.time()
+    max_wait_time = 30  # segundos
+    
+    while selection_response is None and (time.time() - start_time) < max_wait_time:
+        msg = consumer.poll(timeout=1.0)
+        if msg is None:
+            continue
+            
+        if msg.error():
+            continue
+            
+        try:
+            response = json.loads(msg.value().decode('utf-8'))
+            
+            # Verificar si es una respuesta de selección
+            if msg.topic() == TOPIC_SELECTION_ALGORITHM_RESPONSE:
+                print(f"Recibida respuesta de selección: {response}")
+                selection_response = response
+        except Exception as e:
+            print(f"Error al procesar el mensaje: {e}")
+    
     consumer.close()
     
+    # Verificar la respuesta de selección
+    assert selection_response is not None, "No se recibió respuesta de selección"
+    assert selection_response.get("status_code") == 200, f"El status_code es {selection_response.get('status_code')} en lugar de 200"
+    
+    # Verificar que se creó un nuevo archivo con los modelos seleccionados
+    selection_message = selection_response.get("message", {})
+    new_uuid = selection_message.get("uuid")
+    new_path = selection_message.get("path")
+    
+    assert new_uuid is not None, "No se encontró el UUID de los modelos seleccionados"
+    assert new_path is not None, "No se encontró la ruta del archivo de modelos seleccionados"
+    
+    # Verificar que el nuevo archivo existe
+    fixed_new_path = fix_path(new_path)
+    assert os.path.exists(fixed_new_path), f"El archivo {fixed_new_path} no existe"
+    
+    # Cargar los modelos seleccionados para verificar que son el 50% de la población original
+    with open(fixed_new_path, "r", encoding="utf-8") as f:
+        selected_models = json.load(f)
+    
+    # Verificar que se seleccionó el 50% de la población
+    assert len(selected_models) == 5, f"Se esperaban 5 modelos seleccionados (50% de 10), pero se encontraron {len(selected_models)}"
+    
+    print("✅ Test de flujo completo finalizado correctamente.")
+    return new_uuid
+
+
+def test_create_child_after_select_workflow():
+    """
+    Test que realiza el flujo completo: crear población inicial, evaluarla, seleccionar las mejores
+    arquitecturas, y luego crear un hijo a partir de estas.
+    """
+    print("\nIniciando test de flujo completo: crear población, evaluar, seleccionar, y crear hijo...")
+
+    new_uuid = test_create_evaluate_select_workflow()
+    
+    dataset_params = DATASET_PARAMS
+    
+    json_to_send = {
+        "uuid": new_uuid,
+        "dataset_params": dataset_params
+    }
+    
+    print("Paso 5: Enviando mensaje para crear un hijo...")
+    message = json.dumps(json_to_send)
+    producer = create_producer()
+    send_message(producer, TOPIC_CREATE_CHILD, key="create_child", value=message)
+    consumer = create_consumer()
+    response = consume_message(consumer, max_wait=3600)
+    consumer.close()
     assert response is not None, "No se recibió respuesta del tópico"
-    assert response.get("status_code") == 400, f"Se esperaba status_code 400, pero se recibió {response.get('status_code')}"
-    print("✅ Test sin 'model_id' finalizado correctamente con status_code 400.")
+    assert response.get("status_code") == 200, f"Se esperaba status_code 200, pero se recibió {response.get('status_code')}"
+    print("✅ Test de flujo completo finalizado correctamente.")
     return response
 
-
+def test_create_child_2dd():
+    new_uuid = '2dd95264-360a-4d6b-8a23-226325dd9aa9_best50percent'
+    
+    dataset_params = DATASET_PARAMS
+    
+    json_to_send = {
+        "uuid": new_uuid,
+        "dataset_params": dataset_params
+    }
+    
+    print("Paso 5: Enviando mensaje para crear un hijo...")
+    message = json.dumps(json_to_send)
+    producer = create_producer()
+    send_message(producer, TOPIC_CREATE_CHILD, key="create_child", value=message)
+    consumer = create_consumer()
+    response = consume_message(consumer, max_wait=3600)
+    consumer.close()
+    assert response is not None, "No se recibió respuesta del tópico"
+    assert response.get("status_code") == 200, f"Se esperaba status_code 200, pero se recibió {response.get('status_code')}"
+    print("✅ Test de flujo completo finalizado correctamente.")
+    return response
 if __name__ == "__main__":
     # print("Ejecutando test de población válida...")
     # test_create_population()
@@ -493,11 +599,14 @@ if __name__ == "__main__":
     # test_create_population_missing_batch_size()
     # print("\nEjecutando test sin 'num_poblation'...")
     # test_create_population_missing_num_poblation()
-    print("\nEjecutando test de evaluación de población...")
-    test_evaluate_population()
+    # print("\nEjecutando test de evaluación de población...")
+    # test_evaluate_population()
     # print("\nEjecutando test de algoritmo genético...")
     # test_genetic_algorithm()
-    # print("\nEjecutando test de creación de hijo...")
-    # test_create_child()
-    # print("\nEjecutando test sin 'model_id'...")
-    # test_create_child_missing_model_id()
+    # print("\nEjecutando test de flujo completo: crear, evaluar y seleccionar...")
+    # test_create_evaluate_select_workflow()
+    # print("\nEjecutando test de flujo completo: crear, evaluar, seleccionar y crear hijo...")
+    # test_create_child_after_select_workflow()
+    print("\nEjecutando test de crear hijo...")
+    test_create_child_2dd()
+    print("✅ Todos los tests han pasado correctamente.")

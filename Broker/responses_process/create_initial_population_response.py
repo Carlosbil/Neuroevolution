@@ -4,7 +4,7 @@ import requests
 from utils import logger, generate_uuid, check_initial_poblation, create_producer, create_consumer, produce_message
 from responses import ok_message, bad_model_message, runtime_error_message, response_message
 from confluent_kafka import KafkaError
-
+from utils import get_storage_path
 def process_create_initial_population_response(topic, response):
     """Process messages from the 'create_initial_population' topic and send a response to Kafka."""
     try:
@@ -14,7 +14,7 @@ def process_create_initial_population_response(topic, response):
             models = message.get('models', {})
             models_uuid = generate_uuid()
             # Use the configurable storage path
-            from utils import get_storage_path
+            
             path = os.path.join(get_storage_path(), f'{models_uuid}.json')
 
             with open(path, 'w') as file:

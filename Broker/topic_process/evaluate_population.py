@@ -4,6 +4,7 @@ import requests
 import json
 import os
 from confluent_kafka import KafkaError
+from utils import get_storage_path
 
 
 def process_evaluate_population(topic, data):
@@ -16,7 +17,7 @@ def process_evaluate_population(topic, data):
         
         # extract the models
         models_uuid = data['uuid']
-        path = os.path.join(os.path.dirname(__file__), '..', 'models', f'{models_uuid}.json')
+        path = os.path.join(get_storage_path(), f'{models_uuid}.json')
         if not os.path.exists(path):
             bad_model_message(topic)
             return None, None

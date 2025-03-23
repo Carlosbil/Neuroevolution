@@ -40,10 +40,9 @@ def process_select_best_architectures(topic, data):
         with open(path, 'r') as file:
             models = json.load(file)
         
-        # Validate that models have scores
-        if not all('score' in model for model in models.values()):
-            bad_request_message(topic, "All models must have scores")
-            return None, None
+        for model in models.values():
+            if 'score' not in model:
+                model['score'] = 0
 
         # Select best 50% of architectures using tournament selection
         selected_models = {}

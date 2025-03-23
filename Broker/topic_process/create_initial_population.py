@@ -4,6 +4,7 @@ import requests
 from utils import logger, generate_uuid, check_initial_poblation, create_producer, create_consumer, produce_message
 from responses import ok_message, bad_model_message, runtime_error_message, response_message
 from confluent_kafka import KafkaError
+from utils import get_storage_path
 
 def process_create_initial_population(topic, data):
     """Process messages from the 'create_initial_population' topic and send a response to Kafka."""
