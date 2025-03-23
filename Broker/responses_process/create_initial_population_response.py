@@ -21,10 +21,19 @@ def process_create_initial_population_response(topic, response):
                 json.dump(models, file)
             message = {
                 "uuid": models_uuid,
-                "path": path
             }
             ok_message(topic_response, message)
-            return models_uuid, path
+            
+            # now go to step_2, evaluate_population
+            topic_to_send = "evaluate-population"
+            data = {
+                "uuid": models_uuid,
+                "path": path
+            }
+            message = json.dumps(data)
+            producer = create_producer()
+            produce_message(producer, topic_to_send, data, 1)
+            return
         else:
             return response_message(topic_response, response, response.get('status_code', 0))
     except Exception as e:

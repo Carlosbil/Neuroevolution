@@ -11,6 +11,7 @@ from topic_process.select_best_architectures import process_select_best_architec
 from responses_process.create_initial_population_response import process_create_initial_population_response
 from responses_process.evaluate_population_response import process_evaluate_population_response
 from responses_process.create_child_response import process_create_child_response
+from database import init_db, import_json_models
 
 from utils import (
     logger,
@@ -43,7 +44,7 @@ TOPIC_PROCESSORS = {
     "create-child": process_create_child,
     "create-initial-population": process_create_initial_population,
     "evaluate-population": process_evaluate_population,
-    "genetic-algorithm": process_genetic_algorithm,
+    "start-hybrid-neat": process_genetic_algorithm,
     "select-best-architectures": process_select_best_architectures,
     "genome-create-initial-population-response": process_create_initial_population_response,
     "evolutioner-create-cnn-model-response": process_evaluate_population_response,
@@ -52,6 +53,12 @@ TOPIC_PROCESSORS = {
 
 
 def main():
+    # Initialize database and import existing models
+    logger.info("Initializing database...")
+    init_db()
+    logger.info("Importing existing JSON models...")
+    import_json_models()
+    
     consumer = create_kafka_consumer()
     logger.info("Started Kafka Consumer")
 

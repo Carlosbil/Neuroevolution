@@ -422,14 +422,7 @@ def test_create_evaluate_select_workflow():
     
     # Paso 2: Enviar mensaje para evaluar la población
     print("Paso 2: Enviando mensaje para evaluar la población...")
-    params = {
-        "uuid": models_uuid
-    }
-    message = json.dumps(params)
-    
-    producer = create_producer()
-    send_message(producer, TOPIC_EVALUATE, key="population_eval", value=message)
-    
+
     # Paso 3: Simular recepción de 10 mensajes de evaluación (uno por cada modelo)
     print("Paso 3: Simulando recepción de 10 mensajes de evaluación...")
     

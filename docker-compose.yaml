@@ -64,8 +64,15 @@ services:
         condition: service_started
       kafka-init:
         condition: service_completed_successfully
+      postgres:
+        condition: service_started
     environment:
       KAFKA_BROKER: kafka:29092
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: neuroevolution
     volumes:
       - ./Broker/models:/app/models
 
@@ -95,3 +102,26 @@ services:
   #   environment:
   #     KAFKA_BROKER: kafka:29092
 
+  postgres:
+    image: postgres:15
+    container_name: postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: neuroevolution
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: neat_user
+      POSTGRES_PASSWORD: neat_pass
+      POSTGRES_DB: neat_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
