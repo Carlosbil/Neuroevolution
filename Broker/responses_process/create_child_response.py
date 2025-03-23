@@ -33,8 +33,10 @@ def process_create_child_response(topic, response):
             if models == {}:
                 bad_request_message(topic, "No models found")
                 
-            for model in models:
-                models[new_position] = model
+            original_models = list(models.values())
+
+            for model in original_models:
+                models[str(new_position)] = model
                 new_position += 1
             
             # create a new uuid
