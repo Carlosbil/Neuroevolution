@@ -4,7 +4,12 @@ from confluent_kafka import Producer, Consumer, KafkaError
 from topic_process.create_cnn_model import handle_create_cnn_model
 
 # Configuración global de Kafka
-KAFKA_BROKER = "localhost:9092"  # Ajusta según tu entorno
+import os
+import dotenv
+dotenv.load_dotenv()
+
+# Use environment variables with fallbacks
+KAFKA_BROKER = os.environ.get("KAFKA_BROKER", "localhost:9092")
 TOPIC = "evolutioner-create-cnn-model"
 TOPIC_RESPONSE = f"{TOPIC}-response"
 

@@ -30,9 +30,10 @@ def process_create_initial_population_response(topic, response):
             data = {
                 "uuid": models_uuid
             }
+            # Convert the dictionary to a JSON string before passing to produce_message
             message = json.dumps(data)
             producer = create_producer()
-            produce_message(producer, topic_to_send, data, 1)
+            produce_message(producer, topic_to_send, message, 1)
             return
         else:
             return response_message(topic_response, response, response.get('status_code', 0))

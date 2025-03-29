@@ -6,7 +6,11 @@ from confluent_kafka import Producer, Consumer, KafkaError
 from database import get_population, population_exists, get_db_connection
 
 # Configuración global de Kafka
-KAFKA_BROKER = "localhost:9092"  # Cambia esto según tu configuración
+import dotenv
+dotenv.load_dotenv()
+
+# Use environment variables with fallbacks
+KAFKA_BROKER = os.environ.get("KAFKA_BROKER", "localhost:9092")
 
 # topic for genomes interactions
 TOPIC = "create-initial-population"
