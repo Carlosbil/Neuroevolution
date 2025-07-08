@@ -5,6 +5,9 @@ from psycopg2.extras import Json, DictCursor
 import uuid
 import re
 from utils import logger
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Environment variables for PostgreSQL connection
 PG_HOST = os.environ.get("POSTGRES_HOST", "postgres")

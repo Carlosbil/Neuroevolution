@@ -3,7 +3,11 @@ import os
 import time
 import re
 from confluent_kafka import Producer, Consumer, KafkaError
-from database import get_population, population_exists, get_db_connection
+import uuid
+from database import (
+    get_population, population_exists, get_db_connection, save_population,
+    save_model, update_model_score
+)
 
 # Configuración global de Kafka
 import dotenv
@@ -120,6 +124,156 @@ def consume_all_messages(consumer, topics, max_wait=10000):
     return received_messages
 
 
+def test_crud_populations():
+    """
+    Test CRUD operations for the populations table.
+    """
+    print("\nIniciando test CRUD para la tabla populations...")
+    conn = None
+    test_uuid = str(uuid.uuid4())
+
+    try:
+        # 1. Create (Insert)
+        print(f"Paso 1: Insertando population con UUID: {test_uuid}")
+        print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+        assert save_population(test_uuid), "Fallo al guardar la nueva population"
+
+        # 2. Read (Verify Insertion)
+        print("Paso 2: Verificando la inserción...")
+        assert population_exists(test_uuid), f"La population {test_uuid} no se encontró después de insertarla"
+        print("Inserción verificada.")
+
+        # 3. Update (Skipped - Not much to update meaningfully)
+
+        # 4. Delete
+        print(f"Paso 4: Eliminando population con UUID: {test_uuid}")
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        # Need to delete models first due to foreign key constraint if any exist
+        cursor.execute("DELETE FROM models WHERE population_uuid = %s", (test_uuid,))
+        cursor.execute("DELETE FROM populations WHERE uuid = %s", (test_uuid,))
+        conn.commit()
+        assert cursor.rowcount > 0, f"No se eliminó ninguna fila para la population {test_uuid}"
+        print("Population eliminada.")
+
+        # 5. Verify Deletion
+        print("Paso 5: Verificando la eliminación...")
+        assert not population_exists(test_uuid), f"La population {test_uuid} todavía existe después de eliminarla"
+        print("Eliminación verificada.")
+
+        print("✅ Test CRUD para populations finalizado correctamente.")
+
+    except Exception as e:
+        print(f"❌ Error durante el test CRUD para populations: {e}")
+        raise
+    finally:
+        if conn:
+            conn.close()
+
+
+def test_crud_models():
+    """
+    Test CRUD operations for the models table.
+    """
+    print("\nIniciando test CRUD para la tabla models...")
+    conn = None
+    test_pop_uuid = str(uuid.uuid4())
+    test_model_id = "test_model_001"
+    initial_model_data = {"layer1": "conv", "params": 100}
+    updated_score = 0.95
+
+    try:
+        # Prerequisite: Create a population
+        print(f"Prerrequisito: Creando population temporal con UUID: {test_pop_uuid}")
+        assert save_population(test_pop_uuid), "Fallo al guardar la population temporal"
+
+        # 1. Create (Insert)
+        print(f"Paso 1: Insertando model con ID: {test_model_id} en population {test_pop_uuid}")
+        assert save_model(test_pop_uuid, test_model_id, initial_model_data, score=0.5), "Fallo al guardar el nuevo model"
+
+        # 2. Read (Verify Insertion)
+        print("Paso 2: Verificando la inserción del model...")
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        cursor.execute("SELECT data, score FROM models WHERE population_uuid = %s AND model_id = %s", (test_pop_uuid, test_model_id))
+        model_row = cursor.fetchone()
+        assert model_row is not None, f"El model {test_model_id} no se encontró después de insertarlo"
+        assert model_row['data'] == initial_model_data, "Los datos del model no coinciden"
+        assert model_row['score'] == 0.5, "La puntuación inicial del model no coincide"
+        print("Inserción del model verificada.")
+        cursor.close()
+        conn.close() # Close connection after read
+        conn = None
+
+        # 3. Update
+        print(f"Paso 3: Actualizando la puntuación del model {test_model_id} a {updated_score}")
+        assert update_model_score(test_pop_uuid, test_model_id, updated_score), "Fallo al actualizar la puntuación del model"
+
+        # 4. Verify Update
+        print("Paso 4: Verificando la actualización del model...")
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        cursor.execute("SELECT score FROM models WHERE population_uuid = %s AND model_id = %s", (test_pop_uuid, test_model_id))
+        updated_model_row = cursor.fetchone()
+        assert updated_model_row is not None, f"El model {test_model_id} no se encontró después de actualizarlo"
+        assert updated_model_row['score'] == updated_score, f"La puntuación actualizada ({updated_model_row['score']}) no coincide con la esperada ({updated_score})"
+        print("Actualización del model verificada.")
+        cursor.close()
+        conn.close() # Close connection after read
+        conn = None
+
+        # 5. Delete
+        print(f"Paso 5: Eliminando model con ID: {test_model_id}")
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM models WHERE population_uuid = %s AND model_id = %s", (test_pop_uuid, test_model_id))
+        conn.commit()
+        assert cursor.rowcount > 0, f"No se eliminó ninguna fila para el model {test_model_id}"
+        print("Model eliminado.")
+        cursor.close()
+        conn.close() # Close connection after delete
+        conn = None
+
+        # 6. Verify Deletion
+        print("Paso 6: Verificando la eliminación del model...")
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT 1 FROM models WHERE population_uuid = %s AND model_id = %s", (test_pop_uuid, test_model_id))
+        assert cursor.fetchone() is None, f"El model {test_model_id} todavía existe después de eliminarlo"
+        print("Eliminación del model verificada.")
+        cursor.close()
+        conn.close() # Close connection after verification
+        conn = None
+
+        print("✅ Test CRUD para models finalizado correctamente.")
+
+    except Exception as e:
+        print(f"❌ Error durante el test CRUD para models: {e}")
+        raise
+    finally:
+        # Cleanup: Delete the temporary population
+        if population_exists(test_pop_uuid):
+             print(f"Limpieza: Eliminando population temporal {test_pop_uuid}")
+             try:
+                 conn = get_db_connection()
+                 cursor = conn.cursor()
+                 # Ensure no models are left before deleting population
+                 cursor.execute("DELETE FROM models WHERE population_uuid = %s", (test_pop_uuid,))
+                 cursor.execute("DELETE FROM populations WHERE uuid = %s", (test_pop_uuid,))
+                 conn.commit()
+                 print("Population temporal eliminada.")
+             except Exception as e_clean:
+                 print(f"Error durante la limpieza de la population temporal: {e_clean}")
+             finally:
+                 if conn:
+                     conn.close()
+                     conn = None # Ensure conn is None if closed here
+        # Ensure connection is closed if an error occurred before cleanup
+        if conn:
+            conn.close()
+
+
+# --- Existing tests below ---
 def check_response(response):
     """
     Verifica que la respuesta tenga status_code 200 y que la población exista en la base de datos
@@ -555,6 +709,8 @@ def test_create_child_2dd():
     print("✅ Test de flujo completo finalizado correctamente.")
     return response
 if __name__ == "__main__":
+    print("Ejecutando test de CRUD de poblaciones...")
+    test_crud_populations()
     print("Ejecutando test de población válida...")
     test_create_population()
     # print("\nEjecutando test sin 'num_channels'...")
