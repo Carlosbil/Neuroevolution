@@ -1,0 +1,100 @@
+@startuml Neuroevolution System Sequence Diagram - Updated Architecture
+
+!define CLIENT_COLOR #E1F5FE
+!define BROKER_COLOR #FFF3E0
+!define GENOME_COLOR #F3E5F5
+!define EVOLUTIONER_COLOR #E8F5E8
+!define KAFKA_COLOR #FFEBEE
+!define DB_COLOR #F1F8E9
+
+title Neuroevolution System - Controlled Genetic Algorithm (No Infinite Loop)
+
+participant "Client/User" as Client <<CLIENT_COLOR>>
+participant "Kafka" as Kafka <<KAFKA_COLOR>>
+participant "Broker\n(Genetic Algorithm)" as Broker <<BROKER_COLOR>>
+participant "PostgreSQL\nDatabase" as DB <<DB_COLOR>>
+participant "Genome Service" as Genome <<GENOME_COLOR>>
+participant "Evolutioner Service" as Evolutioner <<EVOLUTIONER_COLOR>>
+
+== Controlled Genetic Algorithm Start ==
+Client -> Kafka: Start genetic algorithm
+note right: Topic: genetic-algorithm\nParams: {\n  num_poblation: 4,\n  max_generations: 5,\n  fitness_threshold: 0.95,\n  mutation_rate: 0.1\n}
+
+Kafka -> Broker: Message received
+note right: Broker.genetic_algorithm.py\nprocess_genetic_algorithm()
+
+== Step 1: Create Initial Population ==
+Broker -> Kafka: Request initial population
+note right: Topic: create-initial-population\nInternal call within genetic algorithm
+
+Kafka -> Genome: Generate initial models
+note right: generate_random_model_config()\nfor each individual
+
+Genome -> Kafka: Return model configurations
+note right: Topic: genome-create-initial-population-response
+
+Kafka -> Broker: Models created
+Broker -> DB: Store initial population
+note right: save_population(uuid)\nsave_model(uuid, model_id, model_data)
+
+== Generation Loop (Controlled) ==
+loop For each generation (max_generations)
+    note over Broker: 🔄 Generation N/{max_generations}
+    
+    == Step 2: Evaluate Population ==
+    Broker -> Kafka: Request population evaluation
+    note right: Topic: evaluate-population\nInternal call with population UUID
+    
+    loop For each model in population
+        Kafka -> Evolutioner: Train and evaluate model
+        note right: Topic: evolutioner-create-cnn-model\nBuild CNN, train, calculate accuracy
+        
+        Evolutioner -> Kafka: Return fitness score
+        note right: Topic: evolutioner-create-cnn-model-response\nPayload: {accuracy, model_id, uuid}
+        
+        Kafka -> Broker: Evaluation complete
+        Broker -> DB: Update model with fitness
+        note right: save_model() with score
+    end
+    
+    == Step 3: Check Convergence Criteria ==
+    Broker -> Broker: Check stopping conditions
+    note right: check_convergence_criteria():\n• fitness >= fitness_threshold\n• generation >= max_generations\n• fitness stagnation detected
+    
+    alt Convergence achieved
+        Broker -> DB: Get best model
+        Broker -> Client: Return best model and stats
+        note right: Final results:\n• Best model UUID\n• Generations completed\n• Fitness history\n• Convergence reason
+        
+    else Continue evolution
+        == Step 4: Select Best Architectures ==
+        Broker -> Kafka: Select best models
+        note right: Topic: select-best-architectures\nInternal call - tournament selection
+        
+        Kafka -> Broker: Selection complete
+        note right: Returns UUID of selected models\n(best 50% of population)
+        
+        Broker -> DB: Store selected models
+        note right: New population with suffix\n"_best50percent"
+        
+        == Step 5: Create Children ==
+        Broker -> Broker: Create children from selected
+        note right: create_children_from_selected():\n• Crossover (cross_genomes_local)\n• Mutation (mutate_genome_local)\n• Reset fitness scores
+        
+        Broker -> DB: Store children population
+        note right: save_population(children_uuid)\nNew generation ready
+        
+        == Step 6: Replace Population ==
+        Broker -> Broker: Use children as next generation
+        note right: models_uuid = children_uuid\ngeneration += 1
+    end
+end
+
+== System Architecture Notes ==
+note over Client, Evolutioner: Key Improvements:\n✅ NO infinite loop - controlled by max_generations\n✅ Multiple stopping criteria (fitness, generations, stagnation)\n✅ Database-driven architecture (PostgreSQL)\n✅ Kafka for async communication\n✅ Genetic operations within genetic_algorithm.py\n✅ Clean separation of concerns
+
+note over Broker, DB: Database Schema:\n• populations table (uuid, created_at)\n• models table (population_uuid, model_id, config, score)\n• Efficient queries for fitness tracking\n• Persistent storage across generations
+
+note over Kafka: Kafka Topics:\n• genetic-algorithm (main entry point)\n• create-initial-population\n• evaluate-population\n• select-best-architectures\n• Response topics for async communication
+
+@enduml

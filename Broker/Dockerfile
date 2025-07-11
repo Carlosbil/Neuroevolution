@@ -16,5 +16,3 @@ ENV KAFKA_BROKER=kafka:29092
 
 # Run the application
 CMD ["python", "app.py"]
-
-VOLUME [ "./models" ]

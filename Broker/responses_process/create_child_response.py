@@ -65,6 +65,7 @@ def process_create_child_response(topic, response):
                 'uuid': new_models_uuid,
             }
             ok_message(topic_response, result_message)
+            
             return new_models_uuid, None
 
     except Exception as e:

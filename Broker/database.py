@@ -1,13 +1,16 @@
 import os
 import json
 import psycopg2
-from psycopg2.extras import Json, DictCursor
+from psycopg2.extras import Json, DictCursor, register_default_jsonb
 import uuid
 import re
 from utils import logger
 from dotenv import load_dotenv
 
 load_dotenv()
+
+# Register JSONB adapter for proper JSON handling
+register_default_jsonb(loads=json.loads)
 
 # Environment variables for PostgreSQL connection
 PG_HOST = os.environ.get("POSTGRES_HOST", "postgres")
@@ -94,7 +97,7 @@ def get_db_connection():
             
         # Create connection with security settings
         conn = psycopg2.connect(
-            host=host,
+            host="localhost",
             port=port,
             user=user,
             password=PG_PASSWORD,
@@ -338,7 +341,7 @@ def get_population(population_uuid):
     conn = None
     try:
         conn = get_db_connection()
-        cursor = conn.cursor(DictCursor)
+        cursor = conn.cursor()  # Use regular cursor instead of DictCursor
         
         cursor.execute("""
         SELECT model_id, data, score
@@ -346,10 +349,30 @@ def get_population(population_uuid):
         WHERE population_uuid = %s
         """, (validated_uuid,))
         
-        models = {}
-        for row in cursor.fetchall():
-            models[row['model_id']] = row['data']
+        rows = cursor.fetchall()
+        logger.debug(f"Found {len(rows)} models for population {validated_uuid}")
         
+        models = {}
+        for row in rows:
+            model_id = row[0]
+            data = row[1]
+            score = row[2]
+            
+            # Ensure data is a dictionary
+            if isinstance(data, dict):
+                models[model_id] = data
+            elif isinstance(data, str):
+                # If it's a string, try to parse it as JSON
+                try:
+                    models[model_id] = json.loads(data)
+                except json.JSONDecodeError as e:
+                    logger.error(f"Failed to parse JSON data for model {model_id}: {e}")
+                    continue
+            else:
+                logger.error(f"Unexpected data type {type(data)} for model {model_id}")
+                continue
+        
+        logger.debug(f"Successfully processed {len(models)} models for population {validated_uuid}")
         return models
     except Exception as e:
         logger.error(f"Error retrieving population {validated_uuid}: {e}")
@@ -383,7 +406,9 @@ def population_exists(population_uuid):
         SELECT EXISTS(SELECT 1 FROM models WHERE population_uuid = %s)
         """, (validated_uuid,))
         
-        return cursor.fetchone()[0]
+        exists = cursor.fetchone()[0]
+        logger.debug(f"Population {validated_uuid} exists: {exists}")
+        return exists
     except Exception as e:
         logger.error(f"Error checking if population {validated_uuid} exists: {e}")
         return False
@@ -392,72 +417,48 @@ def population_exists(population_uuid):
             conn.close()
 
 
-def import_json_models():
+def get_best_fitness_from_population(population_uuid):
     """
-    Import existing JSON model files into the PostgreSQL database.
+    Get the best fitness score from a specific population.
+    
+    :param population_uuid: UUID of the population
+    :type population_uuid: str
+    :return: Best fitness score, or 0.0 if no models or error
+    :rtype: float
     """
-    import glob
-    from utils import get_storage_path
-    
-    models_path = get_storage_path()
-    json_files = glob.glob(os.path.join(models_path, "*.json"))
-    
-    for json_file in json_files:
-        try:
-            # Validate file path to prevent path traversal attacks
-            if not os.path.abspath(json_file).startswith(os.path.abspath(models_path)):
-                logger.error(f"Security warning: Attempted access to file outside models directory: {json_file}")
-                continue
-                
-            # Extract UUID from filename
-            filename = os.path.basename(json_file)
-            population_uuid = os.path.splitext(filename)[0]
+    # Validate input to prevent SQL injection
+    validated_uuid = validate_input(population_uuid, input_type="uuid")
+    if validated_uuid is None:
+        logger.error(f"Invalid population UUID format: {population_uuid}")
+        return 0.0
+        
+    conn = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Get the maximum score from the population
+        cursor.execute("""
+        SELECT MAX(score) 
+        FROM models 
+        WHERE population_uuid = %s AND score IS NOT NULL
+        """, (validated_uuid,))
+        
+        result = cursor.fetchone()
+        
+        if result and result[0] is not None:
+            best_fitness = float(result[0])
+            logger.debug(f"Best fitness for population {validated_uuid}: {best_fitness}")
+            return best_fitness
+        else:
+            logger.warning(f"No scores found for population {validated_uuid}")
+            return 0.0
             
-            # Validate UUID format
-            validated_uuid = validate_input(population_uuid, input_type="uuid")
-            if validated_uuid is None:
-                logger.warning(f"Skipping file with invalid UUID format: {filename}")
-                continue
-            
-            # Skip files with _best50percent suffix
-            if "_best50percent" in validated_uuid:
-                continue
-                
-            # Load JSON data with size limit to prevent memory attacks
-            file_size = os.path.getsize(json_file)
-            max_size = 50 * 1024 * 1024  # 50MB limit
-            if file_size > max_size:
-                logger.warning(f"Skipping oversized file {json_file} ({file_size} bytes)")
-                continue
-                
-            with open(json_file, 'r') as f:
-                models_data = json.load(f)
-            
-            # Validate data structure
-            if not isinstance(models_data, dict):
-                logger.warning(f"Invalid data structure in {json_file}, expected dictionary")
-                continue
-            
-            # Save population
-            save_population(validated_uuid)
-            
-            # Save each model with validation
-            for model_id, model_data in models_data.items():
-                # Validate model_id
-                validated_model_id = validate_input(model_id, input_type="string", max_length=50)
-                if validated_model_id is None:
-                    logger.warning(f"Skipping model with invalid ID: {model_id}")
-                    continue
-                    
-                # Validate model_data is a dictionary
-                if not isinstance(model_data, dict):
-                    logger.warning(f"Skipping model with invalid data structure: {model_id}")
-                    continue
-                    
-                save_model(validated_uuid, validated_model_id, model_data)
-                
-            logger.info(f"Imported population {validated_uuid} with {len(models_data)} models")
-        except json.JSONDecodeError as e:
-            logger.error(f"JSON parsing error in {json_file}: {e}")
-        except Exception as e:
-            logger.error(f"Error importing {json_file}: {e}")
+    except Exception as e:
+        logger.error(f"Error getting best fitness for population {validated_uuid}: {e}")
+        return 0.0
+    finally:
+        if conn:
+            conn.close()
+
+

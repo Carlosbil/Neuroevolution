@@ -2,8 +2,6 @@ import logging
 import colorlog
 import uuid
 import os
-import json
-import argparse
 from confluent_kafka import Producer, Consumer, KafkaException, KafkaError
 import signal
 import sys
@@ -11,35 +9,10 @@ import time
 
 # Environment variable configuration
 KAFKA_BROKER = os.environ.get("KAFKA_BROKER", "localhost:9092")
-STORAGE_PATH = os.environ.get("BROKER_STORAGE_PATH", os.path.join(os.path.dirname(__file__), 'models'))
 
-def parse_args():
-    """
-    Parse command-line arguments for the broker service.
 
-    :return: Parsed command-line arguments.
-    :rtype: argparse.Namespace
-    """
-    parser = argparse.ArgumentParser(description='Broker service for Neuroevolution')
-    parser.add_argument('--storage-path', type=str, help='Path to store model files')
-    return parser.parse_args()
 
-def get_storage_path():
-    """
-    Get the configured storage path for saving model files.
-    Ensures the directory exists.
 
-    :return: Absolute path to the directory used for storing model files.
-    :rtype: str
-    """
-    args = parse_args()
-    if args.storage_path:
-        path = args.storage_path
-    else:
-        path = STORAGE_PATH
-    
-    os.makedirs(path, exist_ok=True)
-    return path
 
 # Global logger configuration with file name and line number
 logging.basicConfig(
@@ -92,19 +65,7 @@ def generate_uuid():
     """
     return str(uuid.uuid4())
 
-def get_possible_models(models_uuid):
-    """
-    Retrieve the list of possible models from a JSON file using the provided UUID.
 
-    :param models_uuid: UUID of the model set.
-    :type models_uuid: str
-    :return: Dictionary of possible models loaded from file.
-    :rtype: dict
-    """
-    path = os.path.join(get_storage_path(), f'{models_uuid}.json')
-    with open(path, 'r') as file:
-        possible_models = json.load(file)
-    return possible_models
 
 def produce_message(producer, topic, message, times=10):
     """
@@ -153,3 +114,4 @@ def create_consumer():
         'heartbeat.interval.ms': 15000,
         'max.poll.interval.ms': 300000,
     })
+

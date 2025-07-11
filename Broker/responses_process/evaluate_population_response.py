@@ -4,8 +4,8 @@ import requests
 import json
 import os
 from confluent_kafka import KafkaError
-from utils import get_storage_path
 from database import update_model_score, get_population, population_exists, save_model
+from topic_process.select_best_architectures import process_select_best_architectures
 
 
 def process_evaluate_population_response(topic, data):
@@ -42,6 +42,13 @@ def process_evaluate_population_response(topic, data):
                 if model_id in models:
                     models[model_id]["score"] = score
                     update_model_score(models_uuid, model_id, score)
+                    
+                    # Check if all models have been evaluated with non-zero scores
+                    updated_models = get_population(models_uuid)
+                    if check_how_many(updated_models):
+                        logger.info(f"🥰 All models in population {models_uuid} have been evaluated. Calling select_best_architectures directly.")
+                        # Call process_select_best_architectures directly without Kafka
+                        process_select_best_architectures("select-best-architectures", {"uuid": models_uuid})
                 else:
                     logger.error(f"Model {model_id} not found in population {models_uuid}")
             else:
@@ -54,8 +61,8 @@ def process_evaluate_population_response(topic, data):
             # Get models from database to ensure model_id exists
             models = get_population(models_uuid)
             if model_id in models:
-                models[model_id]["score"] = 0
-                update_model_score(models_uuid, model_id, 0)
+                models[model_id]["score"] = -1
+                update_model_score(models_uuid, model_id, -1)
 
         ok_message(topic_response, {"uuid": models_uuid, "message": "Population evaluated successfully"})
         return models_uuid, None
@@ -68,12 +75,19 @@ def process_evaluate_population_response(topic, data):
 def check_how_many(models):
     """
     Review if we have got all scores for models in a population.
+    Check if all individuals have a non-zero score value.
     
     :param models: Dictionary of models with their data
     :type models: dict
-    :return: Number of models with scores and total number of models
-    :rtype: tuple(int, int)
+    :return: True if all models have non-zero scores, False otherwise
+    :rtype: bool
     """
-    scored_models = sum(1 for model_data in models.values() if "score" in model_data and model_data["score"] is not None)
-    return scored_models, len(models)
+    if not models:
+        return False
+    
+    for model_data in models.values():
+        if "score" not in model_data or model_data["score"] is None or model_data["score"] == 0:
+            return False
+    
+    return True
     

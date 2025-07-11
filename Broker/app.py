@@ -7,16 +7,16 @@ from topic_process.create_initial_population import process_create_initial_popul
 from topic_process.evaluate_population import process_evaluate_population
 from topic_process.create_child import process_create_child
 from topic_process.select_best_architectures import process_select_best_architectures
+from topic_process.genetic_algorithm import process_genetic_algorithm
 from responses_process.create_initial_population_response import process_create_initial_population_response
 from responses_process.evaluate_population_response import process_evaluate_population_response
 from responses_process.create_child_response import process_create_child_response
-from database import init_db, import_json_models
+from database import init_db
 
 from utils import (
     logger,
     check_initial_poblation,
     generate_uuid,
-    get_possible_models,
     create_producer,
     produce_message,
     create_consumer
@@ -43,6 +43,7 @@ TOPIC_PROCESSORS = {
     "create-child": process_create_child,
     "create-initial-population": process_create_initial_population,
     "evaluate-population": process_evaluate_population,
+    "genetic-algorithm": process_genetic_algorithm,
     "select-best-architectures": process_select_best_architectures,
     "genome-create-initial-population-response": process_create_initial_population_response,
     "evolutioner-create-cnn-model-response": process_evaluate_population_response,
@@ -51,14 +52,17 @@ TOPIC_PROCESSORS = {
 
 
 def main():
-    # Initialize database and import existing models
-    logger.info("Initializing database...")
+    # Initialize database
+    logger.info("🚀 Starting Neuroevolution Broker...")
+    logger.info("🔧 Initializing database...")
     init_db()
-    logger.info("Importing existing JSON models...")
-    import_json_models()
+    
+    # Log available topics
+    logger.info(f"📋 Available topics: {list(TOPIC_PROCESSORS.keys())}")
     
     consumer = create_kafka_consumer()
-    logger.info("Started Kafka Consumer")
+    logger.info("🎯 Started Kafka Consumer and subscribed to topics")
+    logger.info("👂 Listening for messages...")
 
     try:
         while True:
@@ -67,25 +71,42 @@ def main():
                 continue
             if msg.error():
                 if msg.error().code() == KafkaError._PARTITION_EOF:
-                    logger.info(f"Reached end of partition: {msg.topic()} [{msg.partition()}]")
+                    logger.info(f"📍 Reached end of partition: {msg.topic()} [{msg.partition()}]")
                 else:
-                    logger.error(f"Kafka error: {msg.error()}")
+                    logger.error(f"❌ Kafka error: {msg.error()}")
                 continue
 
             topic = msg.topic()
-            data = json.loads(msg.value().decode('utf-8'))
-            logger.info(f" ✅ Received message on topic '{topic}': {data}")
+            try:
+                data = json.loads(msg.value().decode('utf-8'))
+                logger.info(f"✅ Received message on topic '{topic}': {data}")
+            except json.JSONDecodeError as e:
+                logger.error(f"❌ Failed to decode JSON message on topic '{topic}': {e}")
+                logger.error(f"📄 Raw message: {msg.value().decode('utf-8', errors='replace')}")
+                continue
 
             processor = TOPIC_PROCESSORS.get(topic)
             if processor:
-                processor(topic, data)
+                try:
+                    logger.info(f"🔄 Processing message with {processor.__name__}")
+                    processor(topic, data)
+                    logger.info(f"✅ Successfully processed message on topic '{topic}'")
+                except Exception as e:
+                    logger.error(f"❌ Error processing message on topic '{topic}': {e}")
+                    logger.error(f"🔍 Error type: {type(e).__name__}")
+                    logger.error(f"📄 Data that caused error: {data}")
             else:
-                logger.error(f"Unknown topic: {topic}")
+                logger.error(f"❌ Unknown topic: {topic}")
+                logger.error(f"📋 Available topics: {list(TOPIC_PROCESSORS.keys())}")
 
     except KeyboardInterrupt:
-        logger.error("⚠️ Shutting down consumer via keyboard... ⚠️")
+        logger.info("⚠️ Shutting down consumer via keyboard interrupt... ⚠️")
+    except Exception as e:
+        logger.error(f"❌ Unexpected error in main loop: {e}")
+        logger.error(f"🔍 Error type: {type(e).__name__}")
     finally:
         consumer.close()
+        logger.info("🔒 Kafka consumer closed")
 
 
 if __name__ == "__main__":
