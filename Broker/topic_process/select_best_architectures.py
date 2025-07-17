@@ -1,4 +1,3 @@
-from responses_process.create_child_response import process_create_child_response
 from utils import logger, create_producer, produce_message, create_consumer, generate_uuid
 from responses import ok_message, bad_model_message, runtime_error_message, bad_request_message
 from database import get_population, population_exists, save_population, save_model, get_population_metadata, save_population_with_metadata
@@ -92,6 +91,9 @@ def mutate_genome_local(genome, mutation_rate=0.1):
             elif key == 'kernel_sizes':
                 genome[key] = [torch.randint(3, 7, (1,)).item() for _ in range(genome['Number of Convolutional Layers'])]
             
+            elif key == 'score':
+                genome[key] = 0.0
+
             logger.debug(f"New value for {key}: {genome[key]}")
     
     return genome
@@ -252,12 +254,24 @@ def process_select_best_architectures(topic, data):
             "generation": new_metadata['generation'],
             "metadata": new_metadata
         }
-
+        
+        # create descendant population
+        for i in range(num_to_select):
+            child_genome = cross_genomes_local(
+                selected_models[random.choice(list(selected_models.keys()))],
+                selected_models[random.choice(list(selected_models.keys()))]
+            )
+            child_genome = mutate_genome_local(child_genome)
+            save_model(new_uuid, num_to_select+i, child_genome)
+        
+        logger.info(f"Created {num_to_select} children from selected models")
+            
         continue_message = json.dumps(continue_algorithm_data)
         producer.produce("continue-algorithm", continue_message.encode('utf-8'))
         producer.flush()
         
-        logger.info(f"✅ Sent children population {new_models_uuid} to continue-algorithm topic")
+        
+        logger.info(f"✅ Sent children population {new_uuid} to continue-algorithm topic")
         return new_uuid, new_uuid
 
     except Exception as e:
