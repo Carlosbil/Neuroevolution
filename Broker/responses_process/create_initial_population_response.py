@@ -11,7 +11,14 @@ def process_create_initial_population_response(topic, response):
         if response.get('status_code', 0) == 200:
             message = response.get('message', {})
             models = message.get('models', {})
-            models_uuid = generate_uuid()
+            
+            # Get the UUID from the original request (passed through from process_create_initial_population)
+            models_uuid = message.get('population_uuid')
+            if not models_uuid:
+                logger.error("No population_uuid found in response message")
+                return runtime_error_message(topic_response)
+            
+            logger.info(f"Using existing UUID for population: {models_uuid}")
             
             # Save population to database
             save_population(models_uuid)
@@ -34,7 +41,7 @@ def process_create_initial_population_response(topic, response):
             message = json.dumps(data)
             producer = create_producer()
             produce_message(producer, topic_to_send, message, 1)
-            return
+            return None,  None
         else:
             return response_message(topic_response, response, response.get('status_code', 0))
     except Exception as e:

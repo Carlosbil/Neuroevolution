@@ -69,7 +69,10 @@ def process_evaluate_population(topic, data):
                 continue
         
         logger.info(f"Successfully sent {models_sent} models to evolutioner-create-cnn-model topic")
-        return
+        
+        # Return the UUID immediately after sending models for evaluation
+        # The evaluation results will be processed asynchronously via responses
+        return models_uuid, None
     except Exception as e:
         logger.error(f"Error in evaluate_population: {e}")
         logger.error(f"Error type: {type(e).__name__}")

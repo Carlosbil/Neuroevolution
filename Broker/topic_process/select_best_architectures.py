@@ -1,6 +1,7 @@
+from responses_process.create_child_response import process_create_child_response
 from utils import logger, create_producer, produce_message, create_consumer, generate_uuid
 from responses import ok_message, bad_model_message, runtime_error_message, bad_request_message
-from database import get_population, population_exists, save_population, save_model
+from database import get_population, population_exists, save_population, save_model, get_population_metadata, save_population_with_metadata
 import json
 import random
 import torch
@@ -118,6 +119,22 @@ def process_select_best_architectures(topic, data):
             bad_model_message(topic, f"Population not found: {models_uuid}")
             return None, None
 
+        # Get population metadata
+        logger.info(f"Getting population metadata for {models_uuid}")
+        metadata = get_population_metadata(models_uuid)
+        
+        if not metadata:
+            logger.warning(f"No metadata found for population {models_uuid}, using defaults")
+            metadata = {
+                'generation': 0,
+                'max_generations': 10,
+                'fitness_threshold': 0.95,
+                'fitness_history': [],
+                'best_overall_fitness': 0.0,
+                'best_overall_uuid': models_uuid,
+                'original_params': {}
+            }
+
         # Get models from database
         models = get_population(models_uuid)
         
@@ -132,6 +149,33 @@ def process_select_best_architectures(topic, data):
         for model in models.values():
             if 'score' not in model:
                 model['score'] = 0
+
+        # Get the best fitness from the current population
+        current_best_fitness = 0.0
+        current_best_model_id = None
+        for model_id, model_data in models.items():
+            model_score = float(model_data.get('score', 0)) if isinstance(model_data.get('score', 0), (int, float)) else 0.0
+            if model_score > current_best_fitness:
+                current_best_fitness = model_score
+                current_best_model_id = model_id
+
+        logger.info(f"Current population best fitness: {current_best_fitness:.4f} (model: {current_best_model_id})")
+
+        # Compare with best_overall_fitness and update if current is better
+        best_overall_fitness = metadata.get('best_overall_fitness', 0.0)
+        best_overall_uuid = metadata.get('best_overall_uuid', models_uuid)
+        
+        if current_best_fitness > best_overall_fitness:
+            logger.info(f"New best overall fitness found: {current_best_fitness:.4f} > {best_overall_fitness:.4f}")
+            best_overall_fitness = current_best_fitness
+            best_overall_uuid = models_uuid
+        else:
+            logger.info(f"Current best fitness {current_best_fitness:.4f} does not exceed overall best {best_overall_fitness:.4f}")
+
+        # Update fitness history
+        fitness_history = metadata.get('fitness_history', [])
+        fitness_history.append(current_best_fitness)
+        logger.info(f"Fitness history updated: {fitness_history}")
 
         # Select best 50% of architectures using tournament selection
         selected_models = {}
@@ -148,25 +192,72 @@ def process_select_best_architectures(topic, data):
             selected_models[winner_id] = models[winner_id]
             models.pop(winner_id)  # Remove winner from candidate pool
 
-        # Save selected models to database with new UUID
-        new_uuid = f"{models_uuid}_best50percent"
-        save_population(new_uuid)
+        # Save selected models to database with a new valid UUID
+        new_uuid = generate_uuid()
         
         # Save each selected model to the new population
         for model_id, model_data in selected_models.items():
             save_model(new_uuid, model_id, model_data)
 
+        # Copy metadata to the new population (increment generation)
+        new_metadata = metadata.copy()
+        new_metadata['generation'] = metadata['generation'] + 1
+        new_metadata['uuid'] = new_uuid
+        new_metadata['fitness_history'] = fitness_history
+        new_metadata['best_overall_fitness'] = best_overall_fitness
+        new_metadata['best_overall_uuid'] = best_overall_uuid
+        
+        # Save metadata for the new population
+        save_population_with_metadata(
+            population_uuid=new_uuid,
+            generation=new_metadata['generation'],
+            max_generations=new_metadata['max_generations'],
+            fitness_threshold=new_metadata['fitness_threshold'],
+            fitness_history=new_metadata['fitness_history'],
+            best_overall_fitness=new_metadata['best_overall_fitness'],
+            best_overall_uuid=new_metadata['best_overall_uuid'],
+            original_params=new_metadata['original_params']
+        )
+
         logger.info(f"Selected {len(selected_models)} best models and saved to new population: {new_uuid}")
+        logger.info(f"Population metadata copied with generation incremented to {new_metadata['generation']}")
+        
+        # Send metadata to continue-algorithm topic
+        logger.info("🔄 Sending metadata to continue-algorithm topic...")
+        producer = create_producer()
+        
+        continue_algorithm_data = {
+            "uuid": new_uuid,
+            "generation": new_metadata['generation'],
+            "max_generations": new_metadata['max_generations'],
+            "fitness_threshold": new_metadata['fitness_threshold'],
+            "fitness_history": new_metadata['fitness_history'],
+            "best_overall_fitness": new_metadata['best_overall_fitness'],
+            "best_overall_uuid": new_metadata['best_overall_uuid'],
+            "original_params": new_metadata['original_params']
+        }
+        
+        continue_message = json.dumps(continue_algorithm_data)
+        producer.produce("continue-algorithm", continue_message.encode('utf-8'))
+        producer.flush()
+        
+        logger.info(f"✅ Sent population {new_uuid} to continue-algorithm topic")
         
         message = {
             "uuid": new_uuid,
             "message": f"Best {len(selected_models)} architectures selected successfully",
             "selected_models": list(selected_models.keys()),
             "original_population_size": population_size,
-            "selected_population_size": len(selected_models)
+            "selected_population_size": len(selected_models),
+            "generation": new_metadata['generation'],
+            "metadata": new_metadata
         }
+
+        continue_message = json.dumps(continue_algorithm_data)
+        producer.produce("continue-algorithm", continue_message.encode('utf-8'))
+        producer.flush()
         
-        ok_message(topic, message)
+        logger.info(f"✅ Sent children population {new_models_uuid} to continue-algorithm topic")
         return new_uuid, new_uuid
 
     except Exception as e:

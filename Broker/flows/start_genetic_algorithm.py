@@ -54,9 +54,9 @@ def main():
         'px_w': 28,                  # Ancho MNIST
         'num_classes': 10,           # Clases MNIST
         'batch_size': 32,            # Tamaño de batch
-        'num_poblation': 4,          # Tamaño de población
+        'num_poblation': 6,          # Tamaño de población
         'max_generations': 5,        # CRITERIO DE PARADA: Máximo 5 generaciones
-        'fitness_threshold': 0.95,   # CRITERIO DE PARADA: Detener si se alcanza 95% de precisión
+        'fitness_threshold': 99,   # CRITERIO DE PARADA: Detener si se alcanza 99% de precisión
         'mutation_rate': 0.1         # Tasa de mutación
     }
     

@@ -6,7 +6,7 @@ Neuroevolution is a distributed system for evolving neural network architectures
 
 ## Architecture
 
-The system consists of three main components:
+The system consists of four main components:
 
 ### 1. Broker
 
@@ -16,7 +16,7 @@ The Broker component serves as the central communication hub, managing the flow 
 - Evaluating populations
 - Selecting the best architectures
 - Creating child models through genetic operations
-- Orchestrating the entire genetic algorithm workflow
+- Providing status check endpoints for other services
 
 ### 2. Genome
 
@@ -34,12 +34,21 @@ The Evolutioners component handles the creation and evaluation of CNN models:
 - Training and evaluating models
 - Reporting performance metrics back to the system
 
+### 4. GeneticAlgorithmService
+
+The GeneticAlgorithmService is a dedicated microservice that orchestrates the complete genetic algorithm workflow:
+
+- Manages multi-generation evolutionary cycles
+- Implements convergence criteria and stopping conditions
+- Coordinates with the broker for population operations
+- Prevents blocking of the main broker during long-running evolutionary processes
+
 ## Communication Flow
 
 The components communicate through Kafka topics:
 
 ```
-Broker → Genome → Evolutioners → Broker
+Client → Broker → GeneticAlgorithmService → Broker → Genome/Evolutioners
 ```
 
 ## Installation

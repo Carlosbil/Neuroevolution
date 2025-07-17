@@ -135,6 +135,13 @@ def init_db():
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS populations (
             uuid VARCHAR(36) PRIMARY KEY,
+            generation INTEGER DEFAULT 0,
+            max_generations INTEGER DEFAULT 10,
+            fitness_threshold FLOAT DEFAULT 0.95,
+            fitness_history JSONB DEFAULT '[]',
+            best_overall_fitness FLOAT DEFAULT 0.0,
+            best_overall_uuid VARCHAR(36),
+            original_params JSONB DEFAULT '{}',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
         """)
@@ -196,6 +203,124 @@ def save_population(population_uuid):
         if conn:
             conn.rollback()
         return False
+    finally:
+        if conn:
+            conn.close()
+
+
+def save_population_with_metadata(population_uuid, generation=0, max_generations=10, fitness_threshold=0.95, 
+                                 fitness_history=None, best_overall_fitness=0.0, best_overall_uuid=None, 
+                                 original_params=None):
+    """
+    Save a population with genetic algorithm metadata to the database.
+    
+    :param population_uuid: UUID of the population
+    :type population_uuid: str
+    :param generation: Current generation number
+    :type generation: int
+    :param max_generations: Maximum number of generations
+    :type max_generations: int
+    :param fitness_threshold: Fitness threshold for convergence
+    :type fitness_threshold: float
+    :param fitness_history: History of fitness values
+    :type fitness_history: list
+    :param best_overall_fitness: Best fitness achieved so far
+    :type best_overall_fitness: float
+    :param best_overall_uuid: UUID of the population with best fitness
+    :type best_overall_uuid: str
+    :param original_params: Original parameters passed to the algorithm
+    :type original_params: dict
+    :return: True if successful, False otherwise
+    :rtype: bool
+    """
+    # Validate input to prevent SQL injection
+    validated_uuid = validate_input(population_uuid, input_type="uuid")
+    if validated_uuid is None:
+        logger.error(f"Invalid population UUID format: {population_uuid}")
+        return False
+    
+    if fitness_history is None:
+        fitness_history = []
+    if original_params is None:
+        original_params = {}
+    if best_overall_uuid is None:
+        best_overall_uuid = population_uuid
+        
+    conn = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            INSERT INTO populations (uuid, generation, max_generations, fitness_threshold,
+                                   fitness_history, best_overall_fitness, best_overall_uuid, original_params) 
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s) 
+            ON CONFLICT (uuid) DO UPDATE SET
+                generation = EXCLUDED.generation,
+                max_generations = EXCLUDED.max_generations,
+                fitness_threshold = EXCLUDED.fitness_threshold,
+                fitness_history = EXCLUDED.fitness_history,
+                best_overall_fitness = EXCLUDED.best_overall_fitness,
+                best_overall_uuid = EXCLUDED.best_overall_uuid,
+                original_params = EXCLUDED.original_params
+        """, (validated_uuid, generation, max_generations, fitness_threshold, 
+              Json(fitness_history), best_overall_fitness, best_overall_uuid, Json(original_params)))
+        
+        conn.commit()
+        logger.info(f"Successfully saved population {validated_uuid} with metadata")
+        return True
+    except Exception as e:
+        logger.error(f"Error saving population {population_uuid} with metadata: {e}")
+        if conn:
+            conn.rollback()
+        return False
+    finally:
+        if conn:
+            conn.close()
+
+
+def get_population_metadata(population_uuid):
+    """
+    Get genetic algorithm metadata for a population.
+    
+    :param population_uuid: UUID of the population
+    :type population_uuid: str
+    :return: Dictionary with metadata or None if not found
+    :rtype: dict or None
+    """
+    validated_uuid = validate_input(population_uuid, input_type="uuid")
+    if validated_uuid is None:
+        logger.error(f"Invalid population UUID format: {population_uuid}")
+        return None
+        
+    conn = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=DictCursor)
+        
+        cursor.execute("""
+            SELECT uuid, generation, max_generations, fitness_threshold, fitness_history,
+                   best_overall_fitness, best_overall_uuid, original_params
+            FROM populations 
+            WHERE uuid = %s
+        """, (validated_uuid,))
+        
+        row = cursor.fetchone()
+        if row:
+            return {
+                'uuid': row['uuid'],
+                'generation': row['generation'],
+                'max_generations': row['max_generations'],
+                'fitness_threshold': row['fitness_threshold'],
+                'fitness_history': row['fitness_history'] if row['fitness_history'] else [],
+                'best_overall_fitness': row['best_overall_fitness'],
+                'best_overall_uuid': row['best_overall_uuid'],
+                'original_params': row['original_params'] if row['original_params'] else {}
+            }
+        return None
+    except Exception as e:
+        logger.error(f"Error getting population metadata {population_uuid}: {e}")
+        return None
     finally:
         if conn:
             conn.close()
@@ -403,7 +528,7 @@ def population_exists(population_uuid):
         cursor = conn.cursor()
         
         cursor.execute("""
-        SELECT EXISTS(SELECT 1 FROM models WHERE population_uuid = %s)
+        SELECT EXISTS(SELECT 1 FROM populations WHERE uuid = %s)
         """, (validated_uuid,))
         
         exists = cursor.fetchone()[0]

@@ -3,7 +3,7 @@ import json
 from utils import logger, create_producer, create_consumer, produce_message
 from responses import ok_message, bad_request_message, runtime_error_message, response_message, bad_model_message
 from confluent_kafka import KafkaError
-from database import get_population, population_exists
+from database import get_population, population_exists, get_population_metadata
 
 
 def process_create_child(topic, data):
@@ -41,10 +41,27 @@ def process_create_child(topic, data):
 
         logger.info(f"Successfully loaded {len(models)} models from database for population: {models_uuid}")
         
+        # Get population metadata
+        logger.info(f"Getting population metadata for {models_uuid}")
+        metadata = get_population_metadata(models_uuid)
+        
+        if not metadata:
+            logger.warning(f"No metadata found for population {models_uuid}, using defaults")
+            metadata = {
+                'generation': 0,
+                'max_generations': 10,
+                'fitness_threshold': 0.95,
+                'fitness_history': [],
+                'best_overall_fitness': 0.0,
+                'best_overall_uuid': models_uuid,
+                'original_params': {}
+            }
+        
         json_to_send = {
             "models": models,
             "uuid": models_uuid,
-            "dataset_params": dataset_params
+            "dataset_params": dataset_params,
+            "metadata": metadata
         }
         
         producer = create_producer()
