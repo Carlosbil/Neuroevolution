@@ -3,7 +3,6 @@ import os
 import logging
 import requests
 from confluent_kafka import Consumer, KafkaException, KafkaError
-from topic_process.create_child import handle_create_child
 from topic_process.create_initial_population import handle_create_initial_population
 
 from utils import (
@@ -13,7 +12,6 @@ from utils import (
 
 # Dictionary-based topic-to-function mapping
 TOPIC_PROCESSORS = {
-    "genome-create-child": handle_create_child,
     "genome-create-initial-population": handle_create_initial_population,
 }
 

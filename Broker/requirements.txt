@@ -3,3 +3,5 @@ flask_restx
 colorlog
 confluent-kafka
 requests
+psycopg2-binary
+python-dotenv

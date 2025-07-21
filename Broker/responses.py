@@ -26,16 +26,20 @@ def bad_optimizer_message(topic):
     send_kafka_response(topic, response)
 
 
-def bad_model_message(topic):
+def bad_model_message(topic, additional_info=None):
     """Send an invalid model error to Kafka."""
     response = {'error': 'Invalid model', 'status_code': 400}
+    if additional_info:
+        response['details'] = additional_info
     logger.error(f"Response: {response}")
     send_kafka_response(topic, response)
 
 
-def runtime_error_message(topic):
+def runtime_error_message(topic, additional_info=None):
     """Send a runtime error message to Kafka."""
     response = {'error': 'Runtime error', 'status_code': 500}
+    if additional_info:
+        response['details'] = additional_info
     logger.error(f"Response: {response}")
     send_kafka_response(topic, response)
 

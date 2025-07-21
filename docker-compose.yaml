@@ -26,6 +26,13 @@ services:
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT_INTERNAL
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      # Configuraciones para operaciones de larga duración
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 3000
+      KAFKA_GROUP_MAX_SESSION_TIMEOUT_MS: 3600000  # 1 hora
+      KAFKA_GROUP_MAX_HEARTBEAT_INTERVAL_MS: 60000  # 1 minuto
+      KAFKA_SOCKET_REQUEST_MAX_BYTES: 104857600  # 100MB
+      KAFKA_MESSAGE_MAX_BYTES: 104857600  # 100MB
+      KAFKA_REPLICA_FETCH_MAX_BYTES: 104857600  # 100MB
 
   kafka-init:
     image: confluentinc/cp-kafka:latest
@@ -43,6 +50,12 @@ services:
       kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --replication-factor 1 --partitions 1 --topic evolutioner-create-cnn-model &&
       kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --replication-factor 1 --partitions 1 --topic genetic-algorithm &&
       kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --replication-factor 1 --partitions 1 --topic select-best-architectures &&
+      kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --replication-factor 1 --partitions 1 --topic continue-algorithm &&
+      kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --replication-factor 1 --partitions 1 --topic save-population-metadata &&
+      kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --replication-factor 1 --partitions 1 --topic get-population-metadata &&
+      kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --replication-factor 1 --partitions 1 --topic check-population &&
+      kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --replication-factor 1 --partitions 1 --topic check-evaluation &&
+      kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --replication-factor 1 --partitions 1 --topic get-best-fitness &&
       echo '-----------------Creating response events topics----------------' &&
       kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --replication-factor 1 --partitions 1 --topic create-child-response &&
       kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --replication-factor 1 --partitions 1 --topic create-initial-population-response  &&
@@ -52,22 +65,33 @@ services:
       kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --replication-factor 1 --partitions 1 --topic evolutioner-create-cnn-model-response &&
       kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --replication-factor 1 --partitions 1 --topic genetic-algorithm-response &&
       kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --replication-factor 1 --partitions 1 --topic select-best-architectures-response &&
+      kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --replication-factor 1 --partitions 1 --topic continue-algorithm-response &&
+      kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --replication-factor 1 --partitions 1 --topic save-population-metadata-response &&
+      kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --replication-factor 1 --partitions 1 --topic get-population-metadata-response &&
+      kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --replication-factor 1 --partitions 1 --topic check-population-response &&
+      kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --replication-factor 1 --partitions 1 --topic check-evaluation-response &&
+      kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --replication-factor 1 --partitions 1 --topic get-best-fitness-response &&
       echo '-----------------Topics created----------------'"
 
-  broker:
-    build:
-      context: ./Broker
-    container_name: broker
-    restart: always
-    depends_on:
-      kafka:
-        condition: service_started
-      kafka-init:
-        condition: service_completed_successfully
-    environment:
-      KAFKA_BROKER: kafka:29092
-    volumes:
-      - ./Broker/models:/app/models
+  # broker:
+  #   build:
+  #     context: ./Broker
+  #   container_name: broker
+  #   restart: always
+  #   depends_on:
+  #     kafka:
+  #       condition: service_started
+  #     kafka-init:
+  #       condition: service_completed_successfully
+  #     postgres:
+  #       condition: service_healthy
+  #   environment:
+  #     KAFKA_BROKER: kafka:29092
+  #     POSTGRES_HOST: ${POSTGRES_HOST}
+  #     POSTGRES_PORT: ${POSTGRES_PORT}
+  #     POSTGRES_USER: ${POSTGRES_USER}
+  #     POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+  #     POSTGRES_DB: ${POSTGRES_DB}
 
   genome:
     build:
@@ -82,6 +106,19 @@ services:
     environment:
       KAFKA_BROKER: kafka:29092
 
+  # genetic-algorithm:
+  #   build:
+  #     context: ./GeneticAlgorithmService
+  #   container_name: genetic-algorithm
+  #   restart: always
+  #   depends_on:
+  #     kafka:
+  #       condition: service_started
+  #     kafka-init:
+  #       condition: service_completed_successfully
+  #   environment:
+  #     KAFKA_BROKER: kafka:29092
+
   # evolutioners:
   #   build:
   #     context: ./Evolutioners
@@ -95,3 +132,47 @@ services:
   #   environment:
   #     KAFKA_BROKER: kafka:29092
 
+  postgres:
+    image: postgres:15
+    container_name: postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-neat_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-neat_pass}
+      POSTGRES_DB: ${POSTGRES_DB:-neat_db}
+      # Configuraciones de seguridad para PostgreSQL
+      POSTGRES_INITDB_ARGS: "--data-checksums"
+      # Deshabilitar acceso remoto con contraseña
+      POSTGRES_HOST_AUTH_METHOD: scram-sha-256
+      POSTGRES_INITDB_WALDIR: /var/lib/postgresql/wal
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./postgres/init-scripts:/docker-entrypoint-initdb.d
+    command: [
+      "postgres", 
+      "-c", "max_connections=100",
+      "-c", "shared_buffers=256MB",
+      "-c", "log_statement=none",
+      "-c", "log_min_duration_statement=1000",
+      "-c", "password_encryption=scram-sha-256",
+      "-c", "checkpoint_timeout=60s",
+      "-c", "checkpoint_completion_target=0.9",
+      "-c", "wal_buffers=16MB",
+      "-c", "synchronous_commit=on",
+      "-c", "fsync=on",
+      "-c", "full_page_writes=on",
+      "-c", "log_checkpoints=on",
+      "-c", "log_connections=on",
+      "-c", "log_disconnections=on"
+    ]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-neat_user} -d ${POSTGRES_DB:-neat_db}"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+volumes:
+  pgdata:

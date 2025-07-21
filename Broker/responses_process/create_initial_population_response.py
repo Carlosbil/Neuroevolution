@@ -1,10 +1,9 @@
-import os
 import json
 import requests
 from utils import logger, generate_uuid, check_initial_poblation, create_producer, create_consumer, produce_message
 from responses import ok_message, bad_model_message, runtime_error_message, response_message
 from confluent_kafka import KafkaError
-from utils import get_storage_path
+from database import save_population, save_model
 def process_create_initial_population_response(topic, response):
     """Process messages from the 'create_initial_population' topic and send a response to Kafka."""
     try:
@@ -12,19 +11,37 @@ def process_create_initial_population_response(topic, response):
         if response.get('status_code', 0) == 200:
             message = response.get('message', {})
             models = message.get('models', {})
-            models_uuid = generate_uuid()
-            # Use the configurable storage path
             
-            path = os.path.join(get_storage_path(), f'{models_uuid}.json')
-
-            with open(path, 'w') as file:
-                json.dump(models, file)
+            # Get the UUID from the original request (passed through from process_create_initial_population)
+            models_uuid = message.get('population_uuid')
+            if not models_uuid:
+                logger.error("No population_uuid found in response message")
+                return runtime_error_message(topic_response)
+            
+            logger.info(f"Using existing UUID for population: {models_uuid}")
+            
+            # Save population to database
+            save_population(models_uuid)
+            
+            # Save each model to database
+            for model_id, model_data in models.items():
+                save_model(models_uuid, model_id, model_data)
+                
             message = {
                 "uuid": models_uuid,
-                "path": path
             }
             ok_message(topic_response, message)
-            return models_uuid, path
+            
+            # now go to step_2, evaluate_population
+            topic_to_send = "evaluate-population"
+            data = {
+                "uuid": models_uuid
+            }
+            # Convert the dictionary to a JSON string before passing to produce_message
+            message = json.dumps(data)
+            producer = create_producer()
+            produce_message(producer, topic_to_send, message, 1)
+            return None,  None
         else:
             return response_message(topic_response, response, response.get('status_code', 0))
     except Exception as e:

@@ -11,6 +11,8 @@ def handle_create_initial_population(topic, params):
         return bad_model_message(topic, "Invalid initial population request, check request params")
 
     num_population = params.get('num_poblation', 10)
+    population_uuid = params.get('population_uuid')  # Get UUID from request
+    
     models = {}
     for i in range(num_population):
         models[i] = generate_random_model_config(
@@ -23,6 +25,7 @@ def handle_create_initial_population(topic, params):
 
     response = {
         'message': 'CNN initial population created successfully',
-        'models': models
+        'models': models,
+        'population_uuid': population_uuid  # Include UUID in response
     }
     return ok_message(topic, response)
