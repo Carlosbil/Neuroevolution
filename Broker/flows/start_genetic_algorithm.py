@@ -58,7 +58,7 @@ def main():
         'max_generations': 5,        # CRITERIO DE PARADA: Máximo 5 generaciones
         'fitness_threshold': 99,   # CRITERIO DE PARADA: Detener si se alcanza 99% de precisión
         'mutation_rate': 0.1,         # Tasa de mutación
-        'path': 'E:\\Neuroevolution\\data\\phd_data'
+        #'path': 'E:\\Neuroevolution\\data\\phd_data'
     }
     
     logger.info("🚀 Iniciando algoritmo genético controlado")
