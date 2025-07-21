@@ -482,6 +482,7 @@ def get_population(population_uuid):
             model_id = row[0]
             data = row[1]
             score = row[2]
+            data['score'] = score if score is not None else 0
             
             # Ensure data is a dictionary
             if isinstance(data, dict):

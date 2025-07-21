@@ -44,23 +44,24 @@ def process_evaluate_population(topic, data):
         for model_id, model_data in models.items():
             try:
                 # Ensure model_data is a dictionary
-                if not isinstance(model_data, dict):
-                    logger.error(f"Model data for {model_id} is not a dictionary: {type(model_data)}")
-                    continue
-                
-                # extract the model
-                json_to_send = model_data.copy()  # Make a copy to avoid modifying original
-                json_to_send["model_id"] = model_id
-                json_to_send["uuid"] = models_uuid
-                
-                logger.debug(f"Sending model {model_id} to evolutioner-create-cnn-model")
-                logger.debug(f"Model data keys: {list(model_data.keys())}")
-                
-                producer = create_producer()
-                topic_to_sed = "evolutioner-create-cnn-model"
-                response_topic = f"{topic_to_sed}-response"
-                produce_message(producer, topic_to_sed, json.dumps(json_to_send), times=1)
-                models_sent += 1
+                if model_data['score'] == 0:
+                    if not isinstance(model_data, dict):
+                        logger.error(f"Model data for {model_id} is not a dictionary: {type(model_data)}")
+                        continue
+                    
+                    # extract the model
+                    json_to_send = model_data.copy()  # Make a copy to avoid modifying original
+                    json_to_send["model_id"] = model_id
+                    json_to_send["uuid"] = models_uuid
+                    
+                    logger.debug(f"Sending model {model_id} to evolutioner-create-cnn-model")
+                    logger.debug(f"Model data keys: {list(model_data.keys())}")
+                    
+                    producer = create_producer()
+                    topic_to_sed = "evolutioner-create-cnn-model"
+                    response_topic = f"{topic_to_sed}-response"
+                    produce_message(producer, topic_to_sed, json.dumps(json_to_send), times=1)
+                    models_sent += 1
                 
             except Exception as model_error:
                 logger.error(f"Error processing model {model_id}: {model_error}")

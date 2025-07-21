@@ -53,11 +53,12 @@ def main():
         'px_h': 28,                  # Altura MNIST
         'px_w': 28,                  # Ancho MNIST
         'num_classes': 10,           # Clases MNIST
-        'batch_size': 32,            # Tamaño de batch
-        'num_poblation': 6,          # Tamaño de población
+        'batch_size': 128,            # Tamaño de batch
+        'num_poblation': 4,          # Tamaño de población
         'max_generations': 5,        # CRITERIO DE PARADA: Máximo 5 generaciones
         'fitness_threshold': 99,   # CRITERIO DE PARADA: Detener si se alcanza 99% de precisión
-        'mutation_rate': 0.1         # Tasa de mutación
+        'mutation_rate': 0.1,         # Tasa de mutación
+        'path': 'E:\\Neuroevolution\\data\\phd_data'
     }
     
     logger.info("🚀 Iniciando algoritmo genético controlado")

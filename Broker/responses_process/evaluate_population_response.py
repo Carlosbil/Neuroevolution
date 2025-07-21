@@ -43,12 +43,6 @@ def process_evaluate_population_response(topic, data):
                     models[model_id]["score"] = score
                     update_model_score(models_uuid, model_id, score)
                     
-                    # Check if all models have been evaluated with non-zero scores
-                    updated_models = get_population(models_uuid)
-                    if check_how_many(updated_models):
-                        logger.info(f"🥰 All models in population {models_uuid} have been evaluated. Calling select_best_architectures directly.")
-                        # Call process_select_best_architectures directly without Kafka
-                        process_select_best_architectures("select-best-architectures", {"uuid": models_uuid})
                 else:
                     logger.error(f"Model {model_id} not found in population {models_uuid}")
             else:
@@ -56,6 +50,8 @@ def process_evaluate_population_response(topic, data):
                 if model_id in models:
                     models[model_id]["score"] = 0
                     update_model_score(models_uuid, model_id, 0)
+            
+            
         else:
             logger.error(f"Error evaluating model {model_id}: {data.get('status_code')}")
             # Get models from database to ensure model_id exists
@@ -63,6 +59,13 @@ def process_evaluate_population_response(topic, data):
             if model_id in models:
                 models[model_id]["score"] = -1
                 update_model_score(models_uuid, model_id, -1)
+
+        # Check if all models have been evaluated with non-zero scores
+        updated_models = get_population(models_uuid)
+        if check_how_many(updated_models):
+            logger.info(f"🥰 All models in population {models_uuid} have been evaluated. Calling select_best_architectures directly.")
+            # Call process_select_best_architectures directly without Kafka
+            process_select_best_architectures("select-best-architectures", {"uuid": models_uuid})
 
         ok_message(topic_response, {"uuid": models_uuid, "message": "Population evaluated successfully"})
         return models_uuid, None

@@ -16,16 +16,33 @@ def handle_create_cnn_model(topic, params):
         individual = get_individual(params)
         dataset_params = get_dataset_params(params)
         
-        # Preparar dataset MNIST y sus dataloaders
-        transform = transforms.Compose([
-            transforms.ToTensor(),
-            transforms.Normalize((0.1307,), (0.3081,))
-        ])
-        train_dataset = datasets.MNIST(root='./data', train=True, download=True, transform=transform)
-        test_dataset = datasets.MNIST(root='./data', train=False, download=True, transform=transform)
-        train_loader = DataLoader(train_dataset, batch_size=dataset_params.get('batch_size'), shuffle=True)
-        test_loader = DataLoader(test_dataset, batch_size=dataset_params.get('batch_size'), shuffle=False)
+        if "path" not in dataset_params:
+            logger.warning("Missing 'path' in dataset parameters")
+            logger.debug("Using default dataset: MNIST dataset")
+            # Preparar dataset MNIST y sus dataloaders
+            transform = transforms.Compose([
+                transforms.ToTensor(),
+                transforms.Normalize((0.1307,), (0.3081,))
+            ])
+            train_dataset = datasets.MNIST(root='./data', train=True, download=True, transform=transform)
+            test_dataset = datasets.MNIST(root='./data', train=False, download=True, transform=transform)
+            train_loader = DataLoader(train_dataset, batch_size=dataset_params.get('batch_size'), shuffle=True)
+            test_loader = DataLoader(test_dataset, batch_size=dataset_params.get('batch_size'), shuffle=False)
         
+        else:
+            logger.warning(f"Using custom dataset from path: {dataset_params.get('path')}")
+            # tenemos en el path 1 carpeta por cada clase con todas las imágenes de esa clase
+            transform = transforms.Compose([
+                transforms.Resize((dataset_params.get('px_h'), dataset_params.get('px_w'))),
+                transforms.ToTensor(),
+                transforms.Normalize((0.5,), (0.5,))
+            ])
+            train_dataset = datasets.ImageFolder(root=dataset_params.get('path'), transform=transform)
+            test_dataset = datasets.ImageFolder(root=dataset_params.get('path'), transform=transform)
+            train_loader = DataLoader(train_dataset, batch_size=dataset_params.get('batch_size'), shuffle=True)
+            test_loader = DataLoader(test_dataset, batch_size=dataset_params.get('batch_size'), shuffle=False)
+        
+        logger.info(f"Dataset prepared with params: {dataset_params}")
         # Construir, entrenar y evaluar el modelo
         accuracy = build_cnn_from_individual(
             individual,

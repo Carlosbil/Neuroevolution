@@ -197,9 +197,7 @@ def process_select_best_architectures(topic, data):
         # Save selected models to database with a new valid UUID
         new_uuid = generate_uuid()
         
-        # Save each selected model to the new population
-        for model_id, model_data in selected_models.items():
-            save_model(new_uuid, model_id, model_data)
+
 
         # Copy metadata to the new population (increment generation)
         new_metadata = metadata.copy()
@@ -221,6 +219,13 @@ def process_select_best_architectures(topic, data):
             original_params=new_metadata['original_params']
         )
 
+        # Save each selected model to the new population
+        i = 0
+        for model_id, model_data in selected_models.items():
+            save_model(new_uuid, str(i), model_data)
+            i += 1
+
+
         logger.info(f"Selected {len(selected_models)} best models and saved to new population: {new_uuid}")
         logger.info(f"Population metadata copied with generation incremented to {new_metadata['generation']}")
         
@@ -238,23 +243,7 @@ def process_select_best_architectures(topic, data):
             "best_overall_uuid": new_metadata['best_overall_uuid'],
             "original_params": new_metadata['original_params']
         }
-        
-        continue_message = json.dumps(continue_algorithm_data)
-        producer.produce("continue-algorithm", continue_message.encode('utf-8'))
-        producer.flush()
-        
-        logger.info(f"✅ Sent population {new_uuid} to continue-algorithm topic")
-        
-        message = {
-            "uuid": new_uuid,
-            "message": f"Best {len(selected_models)} architectures selected successfully",
-            "selected_models": list(selected_models.keys()),
-            "original_population_size": population_size,
-            "selected_population_size": len(selected_models),
-            "generation": new_metadata['generation'],
-            "metadata": new_metadata
-        }
-        
+                
         # create descendant population
         for i in range(num_to_select):
             child_genome = cross_genomes_local(
@@ -262,7 +251,7 @@ def process_select_best_architectures(topic, data):
                 selected_models[random.choice(list(selected_models.keys()))]
             )
             child_genome = mutate_genome_local(child_genome)
-            save_model(new_uuid, num_to_select+i, child_genome)
+            save_model(new_uuid, str(num_to_select+i+1), child_genome, score=0)
         
         logger.info(f"Created {num_to_select} children from selected models")
             
