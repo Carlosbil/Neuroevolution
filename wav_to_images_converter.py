@@ -94,11 +94,11 @@ class WavToImageConverter:
         """
         self.base_path = Path(base_path)
         self.input_folders = [
-            "pretrained_40_1e5_BigVSAN_generated_control",
+            #"pretrained_40_1e5_BigVSAN_generated_control",
             "pretrained_40_1e5_BigVSAN_generated_pathological"
         ]
         self.output_folders = [
-            "images_pretrained_40_1e5_BigVSAN_generated_control",
+            #"images_pretrained_40_1e5_BigVSAN_generated_control",
             "images_pretrained_40_1e5_BigVSAN_generated_pathological"
         ]
         
@@ -114,7 +114,7 @@ class WavToImageConverter:
             logger.info("🔧 Usando CPU para procesamiento")
             
         # Configurar batch size según el dispositivo
-        self.batch_size = 32 if self.use_gpu else 8
+        self.batch_size = 512 if self.use_gpu else 8
         
     def create_output_directories(self):
         """Crear los directorios de salida si no existen"""

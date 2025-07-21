@@ -26,6 +26,11 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
+# Suprimir logs de debug de PIL/Pillow
+logging.getLogger('PIL').setLevel(logging.WARNING)
+logging.getLogger('PIL.PngImagePlugin').setLevel(logging.WARNING)
+
+
 # Evitar mensajes duplicados: limpiar cualquier manejador existente y deshabilitar la propagación.
 if logger.hasHandlers():
     logger.handlers.clear()

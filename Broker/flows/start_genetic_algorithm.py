@@ -21,6 +21,7 @@ logging.basicConfig(
     format='%(asctime)s - %(levelname)s - %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S'
 )
+
 logger = logging.getLogger(__name__)
 
 # Configuración de Kafka
@@ -48,17 +49,30 @@ def send_message(producer, topic, message):
 def main():
     """Función principal para iniciar el algoritmo genético controlado."""
     # Configuración con criterios de parada
+    # config = {
+    #     'num_channels': 1,           # Grayscale para MNIST
+    #     'px_h': 28,                  # Altura MNIST
+    #     'px_w': 28,                  # Ancho MNIST
+    #     'num_classes': 10,           # Clases MNIST
+    #     'batch_size': 128,            # Tamaño de batch
+    #     'num_poblation': 4,          # Tamaño de población
+    #     'max_generations': 5,        # CRITERIO DE PARADA: Máximo 5 generaciones
+    #     'fitness_threshold': 99,   # CRITERIO DE PARADA: Detener si se alcanza 99% de precisión
+    #     'mutation_rate': 0.1,         # Tasa de mutación
+    #     'path': 'E:\\Neuroevolution\\data\\phd_data'
+    # }
+    
     config = {
-        'num_channels': 1,           # Grayscale para MNIST
-        'px_h': 28,                  # Altura MNIST
-        'px_w': 28,                  # Ancho MNIST
-        'num_classes': 10,           # Clases MNIST
-        'batch_size': 128,            # Tamaño de batch
+        'num_channels': 3,           # Grayscale para marta data
+        'px_h': 28,                  # Altura marta data
+        'px_w': 28,                  # Ancho marta data
+        'num_classes': 2,           # Clases marta data
+        'batch_size': 16,            # Tamaño de batch
         'num_poblation': 4,          # Tamaño de población
         'max_generations': 5,        # CRITERIO DE PARADA: Máximo 5 generaciones
         'fitness_threshold': 99,   # CRITERIO DE PARADA: Detener si se alcanza 99% de precisión
         'mutation_rate': 0.1,         # Tasa de mutación
-        #'path': 'E:\\Neuroevolution\\data\\phd_data'
+        'path': 'E:\\Neuroevolution\\data\\phd_data'
     }
     
     logger.info("🚀 Iniciando algoritmo genético controlado")
