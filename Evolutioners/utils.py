@@ -118,6 +118,12 @@ def get_dataset_params(params: Dict) -> Dict:
         'optimizer': params['Optimizer'].lower(),
         'learning_rate': params['Learning Rate'],
     }
+    
+    # Include path parameter if present in the input data
+    if 'path' in params:
+        dataset_params['path'] = params['path']
+        logger.info(f"Path parameter found and included: {params['path']}")
+    
     logger.debug(f"Dataset parameters: {dataset_params}")
     return dataset_params
 

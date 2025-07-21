@@ -47,7 +47,7 @@ def process_create_initial_population(topic, data):
             fitness_history=[],
             best_overall_fitness=0,
             best_overall_uuid=models_uuid,
-            original_params=None
+            original_params=data  # Store all original parameters including path
         )
         
         

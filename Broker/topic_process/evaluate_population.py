@@ -4,7 +4,7 @@ import requests
 import json
 import os
 from confluent_kafka import KafkaError
-from database import get_population, population_exists
+from database import get_population, population_exists, get_population_metadata
 
 
 def process_evaluate_population(topic, data):
@@ -36,6 +36,15 @@ def process_evaluate_population(topic, data):
             bad_model_message(topic, f"No models found for population: {models_uuid}")
             return None, None
         
+        # Get population metadata to include original parameters
+        population_metadata = get_population_metadata(models_uuid)
+        original_params = {}
+        if population_metadata:
+            original_params = population_metadata.get('original_params', {})
+            logger.info(f"Retrieved original parameters for population {models_uuid}: {original_params}")
+        else:
+            logger.warning(f"No metadata found for population {models_uuid}")
+        
         logger.info(f"Successfully loaded {len(models)} models from database for population: {models_uuid}")
         logger.debug(f"Model keys: {list(models.keys())}")
 
@@ -54,8 +63,13 @@ def process_evaluate_population(topic, data):
                     json_to_send["model_id"] = model_id
                     json_to_send["uuid"] = models_uuid
                     
+                    # Include original parameters (including path if present)
+                    json_to_send.update(original_params)
+                    
                     logger.debug(f"Sending model {model_id} to evolutioner-create-cnn-model")
                     logger.debug(f"Model data keys: {list(model_data.keys())}")
+                    if 'path' in original_params:
+                        logger.info(f"Including path parameter in message: {original_params['path']}")
                     
                     producer = create_producer()
                     topic_to_sed = "evolutioner-create-cnn-model"
