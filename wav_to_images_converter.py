@@ -94,11 +94,11 @@ class WavToImageConverter:
         """
         self.base_path = Path(base_path)
         self.input_folders = [
-            #"pretrained_40_1e5_BigVSAN_generated_control",
+            "pretrained_40_1e5_BigVSAN_generated_control",
             "pretrained_40_1e5_BigVSAN_generated_pathological"
         ]
         self.output_folders = [
-            #"images_pretrained_40_1e5_BigVSAN_generated_control",
+            "images_pretrained_40_1e5_BigVSAN_generated_control",
             "images_pretrained_40_1e5_BigVSAN_generated_pathological"
         ]
         

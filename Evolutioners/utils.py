@@ -201,6 +201,74 @@ def build_fc_layers(output_size: int, num_fc: int, dropout: float, num_classes: 
     return fc_layers
 
 
+def train_and_evaluate_fast(model: nn.Module, device: torch.device,
+                           train_loader: DataLoader, test_loader: DataLoader,
+                           optimizer: optim.Optimizer, criterion: nn.Module,
+                           num_epochs: int = 1) -> float:
+    """
+    Versión optimizada y rápida para algoritmos genéticos.
+    Entrena por menos épocas y evalúa solo al final.
+    
+    :param model: The CNN model.
+    :param device: Device to run training on.
+    :param train_loader: Training data loader.
+    :param test_loader: Testing data loader.
+    :param optimizer: Optimizer.
+    :param criterion: Loss function.
+    :param num_epochs: Number of training epochs (default 1 for speed).
+    :return: The final evaluation accuracy (percentage).
+    """
+    model.train()
+    
+    # Entrenamiento rápido con menos épocas
+    for epoch in range(1, num_epochs + 1):
+        running_loss = 0.0
+        batch_count = 0
+        
+        # Sin tqdm para reducir overhead
+        for data, target in train_loader:
+            data, target = data.to(device, non_blocking=True), target.to(device, non_blocking=True)
+            optimizer.zero_grad()
+            output = model(data)
+            loss = criterion(output, target)
+            loss.backward()
+            optimizer.step()
+            
+            running_loss += loss.item()
+            batch_count += 1
+            
+            # Early stopping si el dataset es muy grande (solo para algoritmo genético)
+            if batch_count >= 50:  # Máximo 50 batches para evaluación rápida
+                break
+        
+        avg_loss = running_loss / batch_count
+        logger.info(f"Fast Training Epoch {epoch} - Avg Loss: {avg_loss:.4f}")
+    
+    # Evaluación final optimizada
+    model.eval()
+    correct = 0
+    total = 0
+    eval_batches = 0
+    
+    with torch.no_grad():
+        for data, target in test_loader:
+            data, target = data.to(device, non_blocking=True), target.to(device, non_blocking=True)
+            output = model(data)
+            _, predicted = torch.max(output, 1)
+            total += target.size(0)
+            correct += (predicted == target).sum().item()
+            eval_batches += 1
+            
+            # Early stopping en evaluación también
+            if eval_batches >= 20:  # Máximo 20 batches para evaluación
+                break
+    
+    final_accuracy = 100. * correct / total
+    logger.info(f"Fast Evaluation - Accuracy: {final_accuracy:.2f}% (samples: {total})")
+    
+    return final_accuracy
+
+
 def train_and_evaluate(model: nn.Module, device: torch.device,
                        train_loader: DataLoader, test_loader: DataLoader,
                        optimizer: optim.Optimizer, criterion: nn.Module,
@@ -311,8 +379,14 @@ def build_cnn_from_individual(individual: Dict, num_channels: int, px_h: int, px
     optimizer = optimizer_class(model.parameters(), lr=learning_rate)
     criterion = nn.CrossEntropyLoss()
     
-    # Train and evaluate using the combined loop.
-    final_accuracy = train_and_evaluate(model, device, train_loader, test_loader, optimizer, criterion, num_epochs)
+    # Usar entrenamiento rápido para algoritmos genéticos (num_epochs <= 2)
+    # o entrenamiento completo para evaluaciones finales
+    if num_epochs <= 2:
+        logger.info("🚀 Using fast training for genetic algorithm evaluation")
+        final_accuracy = train_and_evaluate_fast(model, device, train_loader, test_loader, optimizer, criterion, num_epochs)
+    else:
+        logger.info("🎯 Using full training for final evaluation")
+        final_accuracy = train_and_evaluate(model, device, train_loader, test_loader, optimizer, criterion, num_epochs)
     
     return final_accuracy
 
@@ -339,7 +413,9 @@ def create_consumer():
         'group.id': 'evolutioners-consumer-group',
         'auto.offset.reset': 'earliest',
         'enable.auto.commit': True,  # Asegura que los offsets se confirmen automáticamente
-        'session.timeout.ms': 60000,  # Evita desconexiones prematuras
-        'heartbeat.interval.ms': 15000,  # Reduce el riesgo de expulsión por latencia
-        'max.poll.interval.ms': 300000,  # Permite más tiempo para procesar mensajes
+        'session.timeout.ms': 7200000,  # Aumentado a 2 horas para evitar desconexiones
+        'heartbeat.interval.ms': 30000,  # Aumentado a 30 segundos
+        'max.poll.interval.ms': 7200000,  # Aumentado a 2 horas para entrenamientos largos
+        'fetch.min.bytes': 1,  # Optimización para procesamiento rápido
+        'fetch.max.wait.ms': 500,  # Reducir latencia
     })

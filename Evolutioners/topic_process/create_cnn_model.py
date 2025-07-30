@@ -37,6 +37,10 @@ def handle_create_cnn_model(topic, params):
                 transforms.ToTensor(),
                 transforms.Normalize((0.5,), (0.5,))
             ])
+            
+            # Coger el 70% de cada clase para entrenamiento y el 30% para test
+            # Asumiendo que las carpetas están organizadas por clase
+            
             train_dataset = datasets.ImageFolder(root=dataset_params.get('path'), transform=transform)
             test_dataset = datasets.ImageFolder(root=dataset_params.get('path'), transform=transform)
             train_loader = DataLoader(
