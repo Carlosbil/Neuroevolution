@@ -1,0 +1,78 @@
+{
+  "timestamp": "20250803_135406",
+  "execution_time": "0:04:29.461476",
+  "config_used": {
+    "population_size": 8,
+    "max_generations": 5,
+    "fitness_threshold": 95.0,
+    "mutation_rate": 0.15,
+    "crossover_rate": 0.8,
+    "elite_percentage": 0.5,
+    "num_channels": 1,
+    "px_h": 28,
+    "px_w": 28,
+    "num_classes": 10,
+    "batch_size": 64,
+    "test_split": 0.2,
+    "num_epochs": 2,
+    "learning_rate": 0.001,
+    "early_stopping_patience": 50,
+    "min_conv_layers": 1,
+    "max_conv_layers": 4,
+    "min_fc_layers": 1,
+    "max_fc_layers": 3,
+    "min_filters": 8,
+    "max_filters": 128,
+    "min_fc_nodes": 32,
+    "max_fc_nodes": 512,
+    "dataset_path": null,
+    "use_custom_dataset": false
+  },
+  "best_genome": {
+    "num_conv_layers": 2,
+    "num_fc_layers": 1,
+    "filters": [
+      98,
+      83
+    ],
+    "kernel_sizes": [
+      5,
+      3
+    ],
+    "fc_nodes": [
+      153
+    ],
+    "activations": [
+      "leaky_relu"
+    ],
+    "dropout_rate": 0.2421082800910086,
+    "learning_rate": 0.001,
+    "optimizer": "adam",
+    "fitness": 95.078125,
+    "id": "6ac74d06"
+  },
+  "final_generation": 2,
+  "evolution_stats": [
+    {
+      "generation": 0,
+      "avg_fitness": 48.857421875,
+      "max_fitness": 92.8125,
+      "min_fitness": 0.0,
+      "std_fitness": 42.77149213434333
+    },
+    {
+      "generation": 1,
+      "avg_fitness": 91.357421875,
+      "max_fitness": 94.84375,
+      "min_fitness": 83.515625,
+      "std_fitness": 3.349353124308985
+    },
+    {
+      "generation": 2,
+      "avg_fitness": 92.861328125,
+      "max_fitness": 95.078125,
+      "min_fitness": 89.921875,
+      "std_fitness": 1.561981115014554
+    }
+  ]
+}
