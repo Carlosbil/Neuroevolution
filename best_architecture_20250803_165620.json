@@ -1,0 +1,134 @@
+{
+  "timestamp": "20250803_165620",
+  "execution_time": "0:17:51.979439",
+  "config_used": {
+    "population_size": 8,
+    "max_generations": 30,
+    "fitness_threshold": 99.9,
+    "mutation_rate": 0.15,
+    "crossover_rate": 0.8,
+    "elite_percentage": 0.5,
+    "num_channels": 1,
+    "px_h": 28,
+    "px_w": 28,
+    "num_classes": 10,
+    "batch_size": 64,
+    "test_split": 0.2,
+    "num_epochs": 2,
+    "learning_rate": 0.001,
+    "early_stopping_patience": 50,
+    "min_conv_layers": 1,
+    "max_conv_layers": 4,
+    "min_fc_layers": 1,
+    "max_fc_layers": 3,
+    "min_filters": 8,
+    "max_filters": 128,
+    "min_fc_nodes": 32,
+    "max_fc_nodes": 512,
+    "dataset_path": null,
+    "use_custom_dataset": false
+  },
+  "best_genome": {
+    "num_conv_layers": 2,
+    "num_fc_layers": 1,
+    "filters": [
+      98,
+      83
+    ],
+    "kernel_sizes": [
+      5,
+      3
+    ],
+    "fc_nodes": [
+      153
+    ],
+    "activations": [
+      "leaky_relu"
+    ],
+    "dropout_rate": 0.33367103778358853,
+    "learning_rate": 0.001,
+    "optimizer": "adamw",
+    "fitness": 95.9375,
+    "id": "0261895d"
+  },
+  "final_generation": 10,
+  "evolution_stats": [
+    {
+      "generation": 0,
+      "avg_fitness": 48.671875,
+      "max_fitness": 92.8125,
+      "min_fitness": 0.0,
+      "std_fitness": 42.68709178634428
+    },
+    {
+      "generation": 1,
+      "avg_fitness": 79.521484375,
+      "max_fitness": 94.53125,
+      "min_fitness": 0.0,
+      "std_fitness": 30.14679755668227
+    },
+    {
+      "generation": 2,
+      "avg_fitness": 83.740234375,
+      "max_fitness": 95.0,
+      "min_fitness": 30.9375,
+      "std_fitness": 20.646940179199138
+    },
+    {
+      "generation": 3,
+      "avg_fitness": 90.234375,
+      "max_fitness": 95.703125,
+      "min_fitness": 61.171875,
+      "std_fitness": 11.015486479625514
+    },
+    {
+      "generation": 4,
+      "avg_fitness": 94.4140625,
+      "max_fitness": 95.859375,
+      "min_fitness": 93.203125,
+      "std_fitness": 0.8193819126329309
+    },
+    {
+      "generation": 5,
+      "avg_fitness": 93.759765625,
+      "max_fitness": 95.234375,
+      "min_fitness": 92.109375,
+      "std_fitness": 1.021943610918178
+    },
+    {
+      "generation": 6,
+      "avg_fitness": 79.43359375,
+      "max_fitness": 95.3125,
+      "min_fitness": 0.0,
+      "std_fitness": 30.54596960574788
+    },
+    {
+      "generation": 7,
+      "avg_fitness": 93.681640625,
+      "max_fitness": 95.9375,
+      "min_fitness": 87.578125,
+      "std_fitness": 2.5496885520875847
+    },
+    {
+      "generation": 8,
+      "avg_fitness": 93.525390625,
+      "max_fitness": 94.921875,
+      "min_fitness": 91.171875,
+      "std_fitness": 1.0492026798611098
+    },
+    {
+      "generation": 9,
+      "avg_fitness": 93.017578125,
+      "max_fitness": 94.53125,
+      "min_fitness": 90.703125,
+      "std_fitness": 1.184784042059294
+    },
+    {
+      "generation": 10,
+      "avg_fitness": 81.728515625,
+      "max_fitness": 94.921875,
+      "min_fitness": 0.0,
+      "std_fitness": 30.993341469154046
+    }
+  ]
+}

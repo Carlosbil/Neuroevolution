@@ -37,10 +37,28 @@ def handle_create_cnn_model(topic, params):
                 transforms.ToTensor(),
                 transforms.Normalize((0.5,), (0.5,))
             ])
+            
+            # Coger el 70% de cada clase para entrenamiento y el 30% para test
+            # Asumiendo que las carpetas están organizadas por clase
+            
             train_dataset = datasets.ImageFolder(root=dataset_params.get('path'), transform=transform)
             test_dataset = datasets.ImageFolder(root=dataset_params.get('path'), transform=transform)
-            train_loader = DataLoader(train_dataset, batch_size=dataset_params.get('batch_size'), shuffle=True)
-            test_loader = DataLoader(test_dataset, batch_size=dataset_params.get('batch_size'), shuffle=False)
+            train_loader = DataLoader(
+                train_dataset, 
+                batch_size=dataset_params.get('batch_size'), 
+                shuffle=True,
+                num_workers=2,  # Acelera carga de datos
+                pin_memory=True,  # Acelera transferencia a GPU
+                persistent_workers=True  # Mantiene workers vivos
+            )
+            test_loader = DataLoader(
+                test_dataset, 
+                batch_size=dataset_params.get('batch_size'), 
+                shuffle=False,
+                num_workers=2,
+                pin_memory=True,
+                persistent_workers=True
+            )
         
         logger.info(f"Dataset prepared with params: {dataset_params}")
         # Construir, entrenar y evaluar el modelo

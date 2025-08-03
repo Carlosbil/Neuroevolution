@@ -114,7 +114,7 @@ class WavToImageConverter:
             logger.info("🔧 Usando CPU para procesamiento")
             
         # Configurar batch size según el dispositivo
-        self.batch_size = 32 if self.use_gpu else 8
+        self.batch_size = 512 if self.use_gpu else 8
         
     def create_output_directories(self):
         """Crear los directorios de salida si no existen"""
