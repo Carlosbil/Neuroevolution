@@ -1,5 +1,40 @@
 # Neuroevolution System
 
+<div align="center">
+
+**Sistema Distribuido de Neuroevolución para Optimización Automática de Arquitecturas CNN**
+
+[![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/)
+[![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-orange.svg)](https://pytorch.org/)
+[![Kafka](https://img.shields.io/badge/Kafka-Distributed-green.svg)](https://kafka.apache.org/)
+[![License](https://img.shields.io/badge/License-MIT-red.svg)](./LICENSE)
+
+[🚀 Inicio Rápido](./QUICK_START.md) • [📖 Documentación](./CNN_TIME_SERIES.md) • [🏗️ Arquitectura](./ARCHITECTURE.md) • [🐛 Issues](https://github.com/Carlosbil/Neuroevolution/issues)
+
+</div>
+
+---
+
+## 📋 Tabla de Contenidos
+
+- [Descripción General del Proyecto](#-descripción-general-del-proyecto)
+- [Objetivo Principal](#-objetivo-principal)
+- [Características Clave](#-características-clave)
+- [Contexto Científico: CNNs para Series Temporales](#-contexto-científico-cnns-para-series-temporales)
+- [Overview Técnico](#️-overview-técnico)
+- [Arquitectura del Sistema](#️-arquitectura-del-sistema)
+- [Communication Flow](#-communication-flow-flujo-completo)
+- [Instalación y Configuración](#-instalación-y-configuración)
+- [Uso del Sistema](#-uso-del-sistema)
+- [Testing](#-testing)
+- [Rendimiento y Resultados](#-rendimiento-y-resultados)
+- [Publicaciones y Referencias](#-publicaciones-y-referencias)
+- [Características Únicas](#-características-únicas-del-proyecto)
+- [Soporte y Comunidad](#-soporte-y-comunidad)
+- [Documentación Completa](#-documentación-completa)
+
+---
+
 ## 📋 Descripción General del Proyecto
 
 **Neuroevolution** es un sistema distribuido avanzado para la evolución automática de arquitecturas de redes neuronales convolucionales (CNNs) utilizando algoritmos genéticos. El proyecto implementa una plataforma completa de neuroevolución que permite descubrir arquitecturas óptimas de deep learning sin intervención manual, utilizando principios de computación evolutiva.
@@ -1265,25 +1300,46 @@ Este proyecto está licenciado bajo los términos de la licencia incluida en el 
 - **Librosa contributors** por las herramientas de procesamiento de audio
 - **Investigadores en Parkinson** que hacen públicos sus datasets
 
-## 📚 Recursos Adicionales
+## 📚 Documentación Completa
 
-### Documentación Detallada
+### 🎯 Guías Principales
 
-- 📖 **[CNN_TIME_SERIES.md](./CNN_TIME_SERIES.md)**: Explicación exhaustiva del uso de CNNs para series temporales
-- 📖 **[GeneticAlgorithmService/README.md](./GeneticAlgorithmService/README.md)**: Detalles del servicio de algoritmo genético
+| Documento | Descripción | Audiencia |
+|-----------|-------------|-----------|
+| **[QUICK_START.md](./QUICK_START.md)** | ⚡ Guía de inicio en 5 minutos | Todos los usuarios |
+| **[README.md](./README.md)** | 📖 Documentación completa del proyecto | Todos los usuarios |
+| **[CNN_TIME_SERIES.md](./CNN_TIME_SERIES.md)** | 🧠 Cómo usar CNNs para series temporales (muy detallado) | Investigadores, estudiantes |
+| **[ARCHITECTURE.md](./ARCHITECTURE.md)** | 🏗️ Diseño del sistema y decisiones técnicas | Desarrolladores, arquitectos |
+
+### 📂 Documentación por Servicio
+
+- 📖 **[GeneticAlgorithmService/README.md](./GeneticAlgorithmService/README.md)**: Motor del algoritmo genético
 - 📖 **[Broker/LAUNCHER_README.md](./Broker/LAUNCHER_README.md)**: Scripts de lanzamiento
 
-### Tutoriales y Ejemplos
+### 🛠️ Scripts y Herramientas
 
-- 📓 **[hybrid_neuroevolution_notebook.ipynb](./hybrid_neuroevolution_notebook.ipynb)**: Notebook interactivo con ejemplos
-- 🔧 **[wav_to_images_converter.py](./wav_to_images_converter.py)**: Script de conversión audio→espectrograma
+- 🔧 **[wav_to_images_converter.py](./wav_to_images_converter.py)**: Conversión audio→espectrograma con soporte GPU
+- 📓 **[hybrid_neuroevolution_notebook.ipynb](./hybrid_neuroevolution_notebook.ipynb)**: Notebook interactivo
 
-### Enlaces Externos
+### 🌐 Enlaces Externos Útiles
 
+#### Deep Learning
 - 🔗 [PyTorch Documentation](https://pytorch.org/docs/)
+- 🔗 [PyTorch Tutorials](https://pytorch.org/tutorials/)
+- 🔗 [CS231n: CNNs for Visual Recognition](http://cs231n.stanford.edu/)
+
+#### Audio Processing
+- 🔗 [Librosa Documentation](https://librosa.org/doc/latest/)
+- 🔗 [Librosa Tutorial](https://librosa.org/doc/latest/tutorial.html)
+- 🔗 [Audio Signal Processing](https://ccrma.stanford.edu/~jos/sasp/)
+
+#### Distributed Systems
 - 🔗 [Kafka Documentation](https://kafka.apache.org/documentation/)
-- 🔗 [Librosa Tutorials](https://librosa.org/doc/latest/tutorial.html)
-- 🔗 [NEAT Algorithm](http://nn.cs.utexas.edu/downloads/papers/stanley.cec02.pdf)
+- 🔗 [PostgreSQL JSONB](https://www.postgresql.org/docs/current/datatype-json.html)
+
+#### Neuroevolution
+- 🔗 [NEAT Algorithm Paper](http://nn.cs.utexas.edu/downloads/papers/stanley.cec02.pdf)
+- 🔗 [Neuroevolution Review](https://www.nature.com/articles/s42256-018-0006-z)
 
 ---
 
