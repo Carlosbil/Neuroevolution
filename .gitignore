@@ -4,3 +4,4 @@
 *.pyc
 /Broker/models
 .env
+/data_2
