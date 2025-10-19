@@ -4,3 +4,5 @@
 *.pyc
 /Broker/models
 .env
+/data_2
+/ResNet
