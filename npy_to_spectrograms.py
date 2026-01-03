@@ -308,8 +308,8 @@ def main():
         use_gpu = False
     
     # Configurar rutas
-    input_folder = r"e:\Neuroevolution\data\sets\folds_5\files_all_real_syn_n"
-    output_folder = r"e:\Neuroevolution\data\sets\folds_5\images_all_real_syn_n"
+    input_folder = r"e:\Neuroevolution\data\sets\folds_5\files_syn_40_1e5_N"
+    output_folder = r"e:\Neuroevolution\data\sets\folds_5\files_syn_40_1e5_N_spectrograms"
     
     # Verificar que la carpeta de entrada existe
     if not os.path.exists(input_folder):
