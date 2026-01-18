@@ -662,6 +662,8 @@ def train_fold(genome: dict, config: dict, fold_number: int,
     
     print(f"\nTraining for up to {config['num_epochs']} epochs (patience={patience})...")
     print(f"Early stopping based on eval accuracy (val+test combined, like notebook).")
+    print(f"⚠️  IMPORTANT: Will save BEST model during training and use it for final evaluation")
+    print(f"   This matches the methodology used during neuroevolution.")
     
     for epoch in range(1, config['num_epochs'] + 1):
         # Train
@@ -708,11 +710,14 @@ def train_fold(genome: dict, config: dict, fold_number: int,
             break
     
     # Load best model (with best validation accuracy, not latest)
+    # THIS IS CRITICAL: We use the BEST model found during training, not the final one
+    # This matches the methodology used during neuroevolution (best_acc)
     if best_model_state is not None:
         model.load_state_dict(best_model_state)
-        print(f"\nLoaded best model from epoch {best_epoch} (eval_acc={best_val_acc:.2f}%)")
+        print(f"\n✓ Loaded BEST model from epoch {best_epoch} (eval_acc={best_val_acc:.2f}%)")
+        print(f"  This is the model that achieved peak performance during training.")
     else:
-        print(f"\nNo improvement found, using final model state")
+        print(f"\n⚠️ No improvement found, using final model state")
     
     # Final evaluation on eval set (val+test combined, to confirm best model performance)
     print(f"\nEvaluating best model on eval set (val+test)...")
@@ -1139,7 +1144,7 @@ def main():
     """Main function to train and evaluate the best audio model."""
     parser = argparse.ArgumentParser(description='Train Best Audio Model from Neuroevolution')
     parser.add_argument('--json', type=str, 
-                        default='best_architecture_audio_20251119_151927.json',
+                        default='best_architecture_audio_20260106_062855.json',
                         help='Path to the JSON file with best architecture')
     parser.add_argument('--output', type=str, default='results',
                         help='Output directory for results')
